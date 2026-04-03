@@ -1,0 +1,37 @@
+{
+  "name": "cunsulting-agent-ui",
+  "version": "1.0.0",
+  "description": "Consultex AI Frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.4.0",
+    "antd": "^5.22.0",
+    "axios": "^1.6.2",
+    "bootstrap": "^5.3.8",
+    "docx": "^9.6.0",
+    "formik": "^2.4.6",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^6.20.1",
+    "react-toastify": "^11.0.5",
+    "reactstrap": "^9.2.3",
+    "remark-gfm": "^4.0.1",
+    "yup": "^1.4.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.24",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "vite": "^5.0.8"
+  }
+}
