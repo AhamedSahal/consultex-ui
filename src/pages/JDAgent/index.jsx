@@ -11,14 +11,17 @@ import {
   MessageOutlined,
   MenuOutlined,
   UnorderedListOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { fetchPlaybookStatus, uploadPlaybook, fetchCompanies, fetchPlaybooks, deletePlaybook, uploadJdTemplate, fetchJdTemplates, fetchJdTemplate, deleteJdTemplate, fetchChatSessions, createChatSession, fetchSessionMessages, saveSessionMessages, updateChatSession, deleteChatSession } from './service';
+import JDHistoryTab from './JDHistoryTab';
 import PlaybookForm from './playbookForm';
 import PlaybookListModal from './PlaybookListModal';
 import CompanySelectForm from './companySelectForm';
 import JDTemplateUploadModal from './JDTemplateUploadModal';
 import JDTemplateSelectModal from './JDTemplateSelectModal';
+import BatchJDModal from './BatchJDModal';
 import { downloadAsWord, downloadAsPdf } from './downloadUtils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -74,6 +77,8 @@ function resolveLogoUrl(company) {
 function JDAgentPage() {
   const { logout } = useAuth();
 
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'history'
+
   // Persisted chat sessions (loaded from DB)
   const [chatSessions, setChatSessions] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
@@ -99,6 +104,7 @@ function JDAgentPage() {
   const [companySearch, setCompanySearch] = useState('');
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [sidebarModelPickerOpen, setSidebarModelPickerOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-6');
@@ -506,7 +512,10 @@ function JDAgentPage() {
     for (const sec of schema.sections) {
       const compact = (sec.sectionTitle || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       if (['jobdetails', 'jobinformation', 'jobinfo'].some((p) => compact.includes(p))) {
-        return sec.columns || 2;
+        if (sec.columns) return sec.columns;
+        // Fall back to layoutPattern for templates saved before columns was stored
+        if (sec.layoutPattern === 'label-value-label-value') return 4;
+        return 2;
       }
     }
     return 2;
@@ -571,8 +580,31 @@ function JDAgentPage() {
   };
 
   return (
-    <div className="jd-layout">
-      {/* Mobile overlay */}
+    <div className="jd-page-root" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fafbff' }}>
+      <div className="jd-tab-bar" style={{ padding: '8px 24px 0', borderBottom: '2px solid #f0f2f7', background: '#fff' }}>
+        <button
+          type="button"
+          className={`jd-tab-btn${activeTab === 'chat' ? ' jd-tab-btn-active' : ''}`}
+          onClick={() => setActiveTab('chat')}
+        >
+          Chat
+        </button>
+        <button
+          type="button"
+          className={`jd-tab-btn${activeTab === 'history' ? ' jd-tab-btn-active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          JD History
+        </button>
+      </div>
+
+      {activeTab === 'history' ? (
+        <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }}>
+          <JDHistoryTab />
+        </div>
+      ) : (
+      <div className="jd-layout" style={{ flex: 1, minHeight: 0, background: 'transparent', padding: '16px 24px 24px' }}>
+        {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="jd-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
       )}
@@ -665,7 +697,8 @@ function JDAgentPage() {
           </button>
           <span className="jd-mobile-title">JD Agent</span>
         </div>
-        <div className="ai-chat-body">
+
+        <div className="ai-chat-body" style={{ height: '100%' }}>
           <div className="ai-chat-panel">
             <div className="ai-chat-messages" ref={listRef}>
               {messages.length === 0 ? (
@@ -849,14 +882,14 @@ function JDAgentPage() {
                       </button>
                       <button
                         type="button"
-                        className="jd-input-plus-menu-item jd-input-plus-menu-item-disabled"
+                        className="jd-input-plus-menu-item"
                         onClick={() => {
                           setQuickActionsOpen(false);
-                          message.info('Batch mode will be available soon.');
+                          setBatchModalOpen(true);
                         }}
                       >
                         <AppstoreOutlined />
-                        <span>Batch mode</span>
+                        <span>Batch generate</span>
                       </button>
                     </div>
                   )}
@@ -912,6 +945,8 @@ function JDAgentPage() {
           </div>
         </div>
       </div>
+      </div>
+      )}
 
       <PlaybookForm
         open={playbookModalOpen}
@@ -972,6 +1007,13 @@ function JDAgentPage() {
         onTemplatesChange={(updated) =>
           setTemplates((prev) => prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)))
         }
+      />
+      <BatchJDModal
+        open={batchModalOpen}
+        onClose={() => setBatchModalOpen(false)}
+        selectedCompany={selectedCompany}
+        playbookId={playbookId}
+        selectedModel={selectedModel}
       />
     </div>
   );

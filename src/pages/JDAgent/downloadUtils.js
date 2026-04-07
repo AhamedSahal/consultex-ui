@@ -165,15 +165,43 @@ function parseKeyValuePairs(blocks) {
 
     for (const text of texts) {
       // Split by pipe separators first, then parse each chunk
-      const chunks = text.split(/\s*\|\s*/);
-      for (const chunk of chunks) {
-        // Remove bold markers for parsing, find first colon
-        const clean = chunk.replace(/\*\*/g, '').trim();
-        const colonIdx = clean.indexOf(':');
-        if (colonIdx > 0 && colonIdx < 50) {
-          const key = clean.substring(0, colonIdx).trim();
-          const value = clean.substring(colonIdx + 1).trim();
-          if (key) pairs.push({ key, value: value || 'TBD' });
+      const chunks = text.split(/\s*\|\s*/).map((c) => c.trim()).filter(Boolean);
+
+      // Handle 2-col table rows: ["**Label:**", "Value"] or 4-col: ["**L1:**", "V1", "**L2:**", "V2"]
+      // In these formats the label and value are in adjacent chunks — detect and pair them directly.
+      const isCellLabel = (s) => {
+        const clean = s.replace(/\*\*/g, '').trim();
+        // A cell label ends with a colon and has no value content after it
+        return clean.endsWith(':') && clean.replace(/:$/, '').trim().length > 0;
+      };
+
+      let i = 0;
+      let usedCellPairing = false;
+      while (i < chunks.length - 1) {
+        if (isCellLabel(chunks[i])) {
+          const key = chunks[i].replace(/\*\*/g, '').replace(/:$/, '').trim();
+          const value = chunks[i + 1].replace(/\*\*/g, '').trim();
+          // Skip separator rows like "---"
+          if (key && !/^[-|]+$/.test(value)) {
+            pairs.push({ key, value: value || 'TBD' });
+            usedCellPairing = true;
+          }
+          i += 2; // consume both label and value chunks
+        } else {
+          i++;
+        }
+      }
+
+      // Fall back to colon-in-chunk parsing when no cell pairing was found
+      if (!usedCellPairing) {
+        for (const chunk of chunks) {
+          const clean = chunk.replace(/\*\*/g, '').trim();
+          const colonIdx = clean.indexOf(':');
+          if (colonIdx > 0 && colonIdx < 50) {
+            const key = clean.substring(0, colonIdx).trim();
+            const value = clean.substring(colonIdx + 1).trim();
+            if (key) pairs.push({ key, value: value || 'TBD' });
+          }
         }
       }
     }
@@ -201,6 +229,15 @@ function isJobInfoSection(title) {
     const cp = p.replace(/[^a-z0-9]/g, '');
     return lower.includes(p) || compact.includes(cp);
   });
+}
+
+/**
+ * Detect whether a section title refers to the "Approved By" section.
+ */
+function isApprovalsSection(title) {
+  if (!title) return false;
+  const lower = stripInline(title).toLowerCase();
+  return lower.includes('approv') || lower.includes('approved by');
 }
 
 const COLORS = {
@@ -316,6 +353,52 @@ function makeWordJobInfoTable(pairs) {
 }
 
 /**
+ * Build a 3-column approvals signature table:
+ *   | Prepared By: | Approved By: | Date: |
+ *   | ____________ | ____________ | ______ |
+ */
+function makeWordApprovalsTable(pairs) {
+  // pairs: [{key, value}, ...] — we want exactly Prepared By / Approved By / Date as columns
+  const labels = pairs.length > 0
+    ? pairs
+    : [{ key: 'Prepared By', value: 'TBD' }, { key: 'Approved By', value: 'TBD' }, { key: 'Date', value: 'TBD' }];
+
+  const colWidth = Math.floor(100 / labels.length);
+
+  const headerCells = labels.map((p) =>
+    new TableCell({
+      children: [new Paragraph({
+        children: [new TextRun({ text: p.key + ':', bold: true, size: 18, color: COLORS.black })],
+        spacing: { before: 60, after: 60 },
+      })],
+      width: { size: colWidth, type: WidthType.PERCENTAGE },
+      borders: cellBorder,
+      verticalAlign: VerticalAlign.CENTER,
+    })
+  );
+
+  const valueCells = labels.map((p) =>
+    new TableCell({
+      children: [new Paragraph({
+        children: [new TextRun({ text: p.value === 'TBD' ? '' : p.value, size: 18, color: COLORS.gray })],
+        spacing: { before: 60, after: 60 },
+      })],
+      width: { size: colWidth, type: WidthType.PERCENTAGE },
+      borders: cellBorder,
+      verticalAlign: VerticalAlign.CENTER,
+    })
+  );
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({ children: headerCells }),
+      new TableRow({ children: valueCells }),
+    ],
+  });
+}
+
+/**
  * Build a boxed section table:
  *   Row 1: Coloured header with section title
  *   Row 2: White content area (or job info table for JOB INFORMATION)
@@ -323,6 +406,7 @@ function makeWordJobInfoTable(pairs) {
 function makeWordSection(title, contentBlocks, sectionBg = DEFAULT_SECTION_BG) {
   const sectionBorder = makeSectionBorder(sectionBg);
   const isJobInfo = isJobInfoSection(title);
+  const isApprovals = isApprovalsSection(title);
 
   let contentChildren = [];
 
@@ -331,6 +415,9 @@ function makeWordSection(title, contentBlocks, sectionBg = DEFAULT_SECTION_BG) {
     if (pairs.length > 0) {
       contentChildren = [makeWordJobInfoTable(pairs)];
     }
+  } else if (isApprovals) {
+    const pairs = parseKeyValuePairs(contentBlocks);
+    contentChildren = [makeWordApprovalsTable(pairs)];
   }
 
   if (contentChildren.length === 0) {
@@ -588,6 +675,7 @@ export async function downloadAsPdf(markdownContent, fileName = 'job-description
     if (currentSectionTitle === null) return;
 
     const isJobInfo = isJobInfoSection(currentSectionTitle);
+    const isApprovals = isApprovalsSection(currentSectionTitle);
     let contentHtml = '';
 
     if (isJobInfo) {
@@ -607,6 +695,27 @@ export async function downloadAsPdf(markdownContent, fileName = 'job-description
         }
         contentHtml += '</table>';
       }
+    } else if (isApprovals) {
+      const rawPairs = parseKeyValuePairs(currentSectionBlocks);
+      const pairs = rawPairs.length > 0
+        ? rawPairs
+        : [{ key: 'Prepared By', value: '' }, { key: 'Approved By', value: '' }, { key: 'Date', value: '' }];
+      const colPct = Math.floor(100 / pairs.length);
+      contentHtml = '<table style="width:100%;border-collapse:collapse;">';
+      // Header row (labels)
+      contentHtml += '<tr>';
+      pairs.forEach((p) => {
+        contentHtml += `<td style="font-size:11px;font-weight:700;color:#000;padding:6px 8px;border:1px solid #BFBFBF;width:${colPct}%;">${p.key}:</td>`;
+      });
+      contentHtml += '</tr>';
+      // Signature row (values — blank line if TBD)
+      contentHtml += '<tr>';
+      pairs.forEach((p) => {
+        const val = p.value === 'TBD' ? '' : (p.value || '');
+        contentHtml += `<td style="font-size:11px;color:#595959;padding:18px 8px 6px;border:1px solid #BFBFBF;width:${colPct}%;">${val}</td>`;
+      });
+      contentHtml += '</tr>';
+      contentHtml += '</table>';
     }
 
     if (!contentHtml) {

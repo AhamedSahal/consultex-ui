@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Modal, Spin, Popconfirm, Button, Tooltip, message } from 'antd';
 import {
   DeleteOutlined, FileTextOutlined, CheckCircleFilled,
-  ReloadOutlined, EditOutlined, PlusOutlined,
+  ReloadOutlined, EditOutlined, PlusOutlined, EyeOutlined,
 } from '@ant-design/icons';
-import { reparseJdTemplate } from './service';
+import { reparseJdTemplate, fetchJdTemplate } from './service';
 import JDTemplateBuilderModal from './JDTemplateBuilderModal';
 
 function JDTemplateSelectModal({
@@ -18,9 +18,11 @@ function JDTemplateSelectModal({
   deletingId,
   onTemplatesChange,
 }) {
-  const [reparsingId, setReparsingId]       = useState(null);
-  const [builderOpen, setBuilderOpen]       = useState(false);
+  const [reparsingId, setReparsingId]         = useState(null);
+  const [builderOpen, setBuilderOpen]         = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
+  const [viewOnly, setViewOnly]               = useState(false);
+  const [loadingId, setLoadingId]             = useState(null);
 
   const handleReparse = async (e, tpl) => {
     e.stopPropagation();
@@ -39,13 +41,39 @@ function JDTemplateSelectModal({
   const openCreate = (e) => {
     e.stopPropagation();
     setEditingTemplate(null);
+    setViewOnly(false);
     setBuilderOpen(true);
   };
 
-  const openEdit = (e, tpl) => {
+  const openView = async (e, tpl) => {
     e.stopPropagation();
-    setEditingTemplate(tpl);
-    setBuilderOpen(true);
+    setLoadingId(tpl.id);
+    try {
+      // Fetch full schema (list view only has name/date, no parsed_schema_json)
+      const full = await fetchJdTemplate(tpl.id);
+      setEditingTemplate(full);
+      setViewOnly(true);
+      setBuilderOpen(true);
+    } catch (err) {
+      message.error('Could not load template details.');
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const openEdit = async (e, tpl) => {
+    e.stopPropagation();
+    setLoadingId(tpl.id);
+    try {
+      const full = await fetchJdTemplate(tpl.id);
+      setEditingTemplate(full);
+      setViewOnly(false);
+      setBuilderOpen(true);
+    } catch (err) {
+      message.error('Could not load template details.');
+    } finally {
+      setLoadingId(null);
+    }
   };
 
   const handleBuilderSaved = (saved) => {
@@ -89,9 +117,7 @@ function JDTemplateSelectModal({
         ) : (
           <>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
-              Click a template to activate it.
-              DOCX templates: use <ReloadOutlined /> to re-parse.
-              Manual templates: use <EditOutlined /> to edit.
+              Click a template to activate it. Use <EyeOutlined /> to view, <EditOutlined /> to edit, or <ReloadOutlined /> to re-parse DOCX templates.
             </p>
             <div className="pb-list">
               {templates.map((tpl) => {
@@ -135,25 +161,41 @@ function JDTemplateSelectModal({
                     </div>
                     {isActive && <span className="pb-list-item-badge">Active</span>}
 
-                    {/* Edit (manual) or Re-parse (docx) */}
-                    {isManual ? (
-                      <Tooltip title="Edit template">
-                        <button
-                          type="button"
-                          className="pb-list-item-del"
-                          style={{ marginRight: 4, color: '#7c3aed' }}
-                          onClick={(e) => openEdit(e, tpl)}
-                          title="Edit"
-                        >
-                          <EditOutlined />
-                        </button>
-                      </Tooltip>
-                    ) : (
+                    {/* View button — all templates */}
+                    <Tooltip title="View template">
+                      <button
+                        type="button"
+                        className="pb-list-item-del"
+                        style={{ marginRight: 2, color: '#6b7280' }}
+                        disabled={loadingId === tpl.id}
+                        onClick={(e) => openView(e, tpl)}
+                        title="View"
+                      >
+                        {loadingId === tpl.id ? <Spin size="small" /> : <EyeOutlined />}
+                      </button>
+                    </Tooltip>
+
+                    {/* Edit button — all templates */}
+                    <Tooltip title="Edit template">
+                      <button
+                        type="button"
+                        className="pb-list-item-del"
+                        style={{ marginRight: 2, color: '#3b82f6' }}
+                        disabled={loadingId === tpl.id}
+                        onClick={(e) => openEdit(e, tpl)}
+                        title="Edit"
+                      >
+                        <EditOutlined />
+                      </button>
+                    </Tooltip>
+
+                    {/* Re-parse — DOCX templates only */}
+                    {!isManual && (
                       <Tooltip title="Re-parse template schema">
                         <button
                           type="button"
                           className="pb-list-item-del"
-                          style={{ marginRight: 4, color: '#6366f1' }}
+                          style={{ marginRight: 2, color: '#6366f1' }}
                           disabled={reparsingId === tpl.id}
                           onClick={(e) => handleReparse(e, tpl)}
                           title="Re-parse"
@@ -192,9 +234,11 @@ function JDTemplateSelectModal({
 
       <JDTemplateBuilderModal
         open={builderOpen}
-        onClose={() => setBuilderOpen(false)}
+        onClose={() => { setBuilderOpen(false); setViewOnly(false); setEditingTemplate(null); }}
         onSaved={handleBuilderSaved}
         editTemplate={editingTemplate}
+        viewOnly={viewOnly}
+        onSwitchToEdit={() => setViewOnly(false)}
       />
     </>
   );
