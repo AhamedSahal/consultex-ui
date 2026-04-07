@@ -29,6 +29,26 @@ export async function fetchGeneratedJds() {
   return res.data;
 }
 
+export async function fetchJdHistory({ search, company_id, department, type } = {}) {
+  const params = {};
+  if (search) params.search = search;
+  if (company_id) params.company_id = company_id;
+  if (department) params.department = department;
+  if (type && type !== 'all') params.type = type;
+  const res = await api.get('/modules/jd-agent/jds', { params });
+  return res.data;
+}
+
+export async function fetchJdById(id) {
+  const res = await api.get(`/modules/jd-agent/jds/${id}`);
+  return res.data;
+}
+
+export async function deleteJd(id) {
+  const res = await api.delete(`/modules/jd-agent/jds/${id}`);
+  return res.data;
+}
+
 export async function fetchPlaybooks() {
   const res = await api.get('/modules/jd-agent/playbooks');
   return res.data;
@@ -76,6 +96,15 @@ export async function createManualTemplate(payload) {
   return res.data;
 }
 
+export async function parseTemplatePreview(file) {
+  const fd = new FormData();
+  fd.append('template_file', file);
+  const res = await api.post('/modules/jd-agent/templates/preview', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+}
+
 export async function updateManualTemplate(id, payload) {
   const res = await api.put(`/modules/jd-agent/templates/${id}/manual`, payload);
   return res.data;
@@ -109,5 +138,42 @@ export async function updateChatSession(id, data) {
 
 export async function deleteChatSession(id) {
   await api.delete(`/modules/jd-agent/chat-sessions/${id}`);
+}
+
+// ── Batch JD Generation API ───────────────────────────────────────────────────
+
+export async function parseOrgChart(companyId, selectedModel) {
+  const res = await api.post('/modules/jd-agent/batch/parse-org-chart', {
+    company_id: companyId,
+    selected_model: selectedModel || undefined,
+  });
+  return res.data; // { roles: [...] }
+}
+
+export async function startBatchRun({ companyId, playbookId, roles, selectedModel }) {
+  const res = await api.post('/modules/jd-agent/batch/run', {
+    company_id:     companyId,
+    playbook_id:    playbookId || undefined,
+    roles,
+    selected_model: selectedModel || undefined,
+  });
+  return res.data; // { runId }
+}
+
+export async function cancelBatchRun(runId) {
+  const res = await api.post(`/modules/jd-agent/batch/run/${runId}/cancel`);
+  return res.data;
+}
+
+export async function listBatchRuns(companyId) {
+  const res = await api.get('/modules/jd-agent/batch/runs', {
+    params: companyId ? { company_id: companyId } : {},
+  });
+  return res.data;
+}
+
+export async function getBatchRun(runId) {
+  const res = await api.get(`/modules/jd-agent/batch/run/${runId}`);
+  return res.data;
 }
 

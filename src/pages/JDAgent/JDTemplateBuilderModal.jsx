@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { createManualTemplate, updateManualTemplate } from './service';
+import React, { useState, useEffect, useRef } from 'react';
+import { createManualTemplate, updateManualTemplate, parseTemplatePreview } from './service';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -17,13 +17,16 @@ const CANONICAL_SECTIONS = [
 ];
 
 const CANONICAL_FIELDS = [
-  { key: 'job_title',           label: 'Job Title' },
-  { key: 'reports_to',          label: 'Reports To' },
-  { key: 'department',          label: 'Department' },
-  { key: 'location',            label: 'Location' },
-  { key: 'grade',               label: 'Grade' },
-  { key: 'no_of_direct_reports', label: 'No. of Direct Reports' },
-  { key: null,                  label: 'Custom (TBD)' },
+  { key: 'job_title',              label: 'Job Title' },
+  { key: 'reports_to',             label: 'Reports To' },
+  { key: 'department',             label: 'Department' },
+  { key: 'location',               label: 'Location' },
+  { key: 'grade',                  label: 'Grade' },
+  { key: 'no_of_direct_reports',   label: 'No. of Direct Reports' },
+  { key: 'section',                label: 'Section' },
+  { key: 'division',               label: 'Division' },
+  { key: 'job_description_number', label: 'Job Description Number' },
+  { key: null,                     label: 'Custom (TBD)' },
 ];
 
 const DEFAULT_LAYOUT_OPTIONS = [
@@ -55,35 +58,39 @@ function buildDefaultSections(primaryColor) {
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
-function FieldRow({ field, onChange, onRemove }) {
+function FieldRow({ field, onChange, onRemove, viewOnly }) {
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
       <input
-        style={{ flex: 2, padding: '4px 8px', borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13 }}
+        style={{ flex: 2, padding: '4px 8px', borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13, background: viewOnly ? '#f9fafb' : '#fff' }}
         placeholder="Field label (e.g. Job Code)"
         value={field.label}
         onChange={(e) => onChange({ ...field, label: e.target.value })}
+        readOnly={viewOnly}
       />
       <select
-        style={{ flex: 1, padding: '4px 8px', borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13 }}
+        style={{ flex: 1, padding: '4px 8px', borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13, background: viewOnly ? '#f9fafb' : '#fff' }}
         value={field.canonicalKey ?? '__null__'}
         onChange={(e) => onChange({ ...field, canonicalKey: e.target.value === '__null__' ? null : e.target.value })}
+        disabled={viewOnly}
       >
         {CANONICAL_FIELDS.map((cf) => (
           <option key={cf.key ?? '__null__'} value={cf.key ?? '__null__'}>{cf.label}</option>
         ))}
       </select>
-      <button
-        type="button"
-        onClick={onRemove}
-        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
-        title="Remove field"
-      >×</button>
+      {!viewOnly && (
+        <button
+          type="button"
+          onClick={onRemove}
+          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+          title="Remove field"
+        >×</button>
+      )}
     </div>
   );
 }
 
-function SectionRow({ section, onUpdate, primaryColor }) {
+function SectionRow({ section, onUpdate, primaryColor, viewOnly }) {
   const updateField = (idx, newField) => {
     const fields = section.fields.map((f, i) => (i === idx ? newField : f));
     onUpdate({ ...section, fields });
@@ -118,18 +125,21 @@ function SectionRow({ section, onUpdate, primaryColor }) {
           }}
           value={section.sectionTitle}
           onChange={(e) => onUpdate({ ...section, sectionTitle: e.target.value })}
-          disabled={!section.enabled}
+          disabled={!section.enabled || viewOnly}
+          readOnly={viewOnly}
           placeholder="Section title…"
         />
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#fff', fontSize: 12, cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={section.useCustomColor}
-            onChange={(e) => onUpdate({ ...section, useCustomColor: e.target.checked })}
-          />
-          Custom color
-        </label>
-        {section.useCustomColor && (
+        {!viewOnly && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#fff', fontSize: 12, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={section.useCustomColor}
+              onChange={(e) => onUpdate({ ...section, useCustomColor: e.target.checked })}
+            />
+            Custom color
+          </label>
+        )}
+        {!viewOnly && section.useCustomColor && (
           <input
             type="color"
             value={section.headerColor || '#2F5496'}
@@ -137,14 +147,16 @@ function SectionRow({ section, onUpdate, primaryColor }) {
             style={{ width: 32, height: 24, border: 'none', cursor: 'pointer', borderRadius: 3 }}
           />
         )}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#fff', fontSize: 12, cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={section.enabled}
-            onChange={(e) => onUpdate({ ...section, enabled: e.target.checked })}
-          />
-          Include
-        </label>
+        {!viewOnly && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#fff', fontSize: 12, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={section.enabled}
+              onChange={(e) => onUpdate({ ...section, enabled: e.target.checked })}
+            />
+            Include
+          </label>
+        )}
       </div>
 
       {/* Section body */}
@@ -153,9 +165,10 @@ function SectionRow({ section, onUpdate, primaryColor }) {
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
             <label style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>Maps to:</label>
             <select
-              style={{ flex: 1, padding: '4px 8px', borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13 }}
+              style={{ flex: 1, padding: '4px 8px', borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13, background: viewOnly ? '#f9fafb' : '#fff' }}
               value={section.canonicalKey}
               onChange={(e) => onUpdate({ ...section, canonicalKey: e.target.value })}
+              disabled={viewOnly}
             >
               {CANONICAL_SECTIONS.map((cs) => (
                 <option key={cs.key} value={cs.key}>{cs.label}</option>
@@ -163,9 +176,10 @@ function SectionRow({ section, onUpdate, primaryColor }) {
             </select>
             <label style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>Layout:</label>
             <select
-              style={{ flex: 1, padding: '4px 8px', borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13 }}
+              style={{ flex: 1, padding: '4px 8px', borderRadius: 4, border: '1px solid #d1d5db', fontSize: 13, background: viewOnly ? '#f9fafb' : '#fff' }}
               value={section.layoutPattern}
               onChange={(e) => onUpdate({ ...section, layoutPattern: e.target.value })}
+              disabled={viewOnly}
             >
               {DEFAULT_LAYOUT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -185,16 +199,19 @@ function SectionRow({ section, onUpdate, primaryColor }) {
                   field={field}
                   onChange={(newField) => updateField(idx, newField)}
                   onRemove={() => removeField(idx)}
+                  viewOnly={viewOnly}
                 />
               ))}
-              <button
-                type="button"
-                onClick={addField}
-                style={{
-                  fontSize: 13, color: '#3b82f6', background: 'none', border: '1px dashed #93c5fd',
-                  borderRadius: 4, padding: '3px 12px', cursor: 'pointer', marginTop: 4,
-                }}
-              >+ Add field</button>
+              {!viewOnly && (
+                <button
+                  type="button"
+                  onClick={addField}
+                  style={{
+                    fontSize: 13, color: '#3b82f6', background: 'none', border: '1px dashed #93c5fd',
+                    borderRadius: 4, padding: '3px 12px', cursor: 'pointer', marginTop: 4,
+                  }}
+                >+ Add field</button>
+              )}
             </div>
           )}
         </div>
@@ -212,23 +229,32 @@ function SectionRow({ section, onUpdate, primaryColor }) {
  *   open          boolean
  *   onClose       () => void
  *   onSaved       (template) => void   — called with saved template record
- *   editTemplate  object | null        — if set, pre-fills the form for editing
+ *   editTemplate  object | null        — if set, pre-fills the form for editing/viewing
+ *   viewOnly      boolean              — if true, all inputs are read-only; shows "Edit" button
+ *   onSwitchToEdit () => void          — called when user clicks "Edit" in view-only mode
  */
-export default function JDTemplateBuilderModal({ open, onClose, onSaved, editTemplate }) {
+export default function JDTemplateBuilderModal({ open, onClose, onSaved, editTemplate, viewOnly, onSwitchToEdit }) {
   const [name, setName]               = useState('');
   const [primaryColor, setPrimaryColor] = useState('#2F5496');
   const [sections, setSections]       = useState([]);
   const [saving, setSaving]           = useState(false);
   const [error, setError]             = useState('');
 
+  // Upload-and-parse state
+  const [parseFile,  setParseFile]  = useState(null);
+  const [parsing,    setParsing]    = useState(false);
+  const [parseError, setParseError] = useState('');
+  const parseFileRef = useRef();
+
   // Initialise / reset when modal opens
   useEffect(() => {
     if (!open) return;
     setError('');
     setSaving(false);
+    setParseFile(null);
+    setParseError('');
 
     if (editTemplate) {
-      // Pre-fill from existing manual template
       setName(editTemplate.name || '');
       const theme = editTemplate.parsed_theme_json || editTemplate.parsedTheme;
       const color = theme?.primaryColor || '#2F5496';
@@ -236,19 +262,38 @@ export default function JDTemplateBuilderModal({ open, onClose, onSaved, editTem
 
       const schemaSections = (editTemplate.parsed_schema_json || editTemplate.parsedSchema)?.sections || [];
       const rebuilt = schemaSections.map((sec) => {
-        const fields = sec.cells
-          .filter((c) => c.col === 0 || c.col === 2)
-          .map((c) => ({
-            label:        c.text.replace(/:$/, '').trim(),
-            canonicalKey: null, // will be re-derived on save; display is label-only
-          }));
+        // Use labelCells if available (new parser), otherwise fall back to cells col-filter
+        const labelSource = Array.isArray(sec.labelCells) && sec.labelCells.length > 0
+          ? sec.labelCells
+          : (Array.isArray(sec.cells) ? sec.cells.filter((c) => c.col === 0 || c.col === 2) : []);
+
+        const fields = labelSource
+          .filter((c) => c.text && c.text.trim())
+          .map((c) => {
+            const label = c.text.replace(/:$/, '').trim();
+            // Use stored canonicalKey if set; fall back to label matching for templates
+            // saved before canonicalKey was tracked (avoids showing "Custom (TBD)" for known fields)
+            let canonicalKey = c.canonicalKey !== undefined ? c.canonicalKey : null;
+            if (!canonicalKey) {
+              const matched = CANONICAL_FIELDS.find((cf) => cf.key && cf.label.toLowerCase() === label.toLowerCase());
+              if (matched) canonicalKey = matched.key;
+            }
+            return { label, canonicalKey };
+          });
+
+        // Match canonicalKey: check if any CANONICAL_SECTIONS key is a substring match
+        const matchedSection = CANONICAL_SECTIONS.find((cs) => {
+          if (!sec.sectionTitle) return false;
+          const title = sec.sectionTitle.toLowerCase();
+          return title.includes(cs.key.replace(/_/g, ' ')) ||
+                 cs.key.split('_').some((word) => word.length > 3 && title.includes(word));
+        });
+
         return {
-          canonicalKey:   CANONICAL_SECTIONS.find((cs) =>
-            sec.sectionTitle && sec.sectionTitle.toLowerCase().includes(cs.label.toLowerCase().split(' ')[0])
-          )?.key || 'job_information',
+          canonicalKey:   matchedSection?.key || 'special_requirements',
           sectionTitle:   sec.sectionTitle,
           headerColor:    sec.headerColor || color,
-          useCustomColor: sec.headerColor && sec.headerColor !== color,
+          useCustomColor: !!(sec.headerColor && sec.headerColor !== color),
           layoutPattern:  sec.layoutPattern || 'single-column',
           fields,
           enabled: true,
@@ -273,6 +318,30 @@ export default function JDTemplateBuilderModal({ open, onClose, onSaved, editTem
 
   const updateSection = (idx, updated) => {
     setSections((prev) => prev.map((s, i) => (i === idx ? updated : s)));
+  };
+
+  const handleParseAndFill = async () => {
+    if (!parseFile) return;
+    setParsing(true);
+    setParseError('');
+    try {
+      const result = await parseTemplatePreview(parseFile);
+      if (result.sections && result.sections.length > 0) {
+        setSections(result.sections);
+        if (result.styleGuide && result.styleGuide.primaryColor) {
+          handlePrimaryColorChange(result.styleGuide.primaryColor);
+        }
+        if (!name && result.suggestedName) {
+          setName(result.suggestedName);
+        }
+      } else {
+        setParseError('No sections were detected. Please check the document and try again.');
+      }
+    } catch (err) {
+      setParseError(err?.response?.data?.error || err.message || 'Could not parse the document. Please try again.');
+    } finally {
+      setParsing(false);
+    }
   };
 
   const handleSave = async () => {
@@ -328,7 +397,7 @@ export default function JDTemplateBuilderModal({ open, onClose, onSaved, editTem
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
-            {editTemplate ? 'Edit Template' : 'Create Template'}
+            {viewOnly ? 'View Template' : editTemplate ? 'Edit Template' : 'Create Template'}
           </h2>
           <button
             type="button" onClick={onClose}
@@ -348,10 +417,12 @@ export default function JDTemplateBuilderModal({ open, onClose, onSaved, editTem
                 style={{
                   width: '100%', padding: '8px 12px', borderRadius: 6,
                   border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box',
+                  background: viewOnly ? '#f9fafb' : '#fff',
                 }}
                 placeholder="e.g. RAK Properties Template"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => !viewOnly && setName(e.target.value)}
+                readOnly={viewOnly}
               />
             </div>
             <div>
@@ -361,22 +432,87 @@ export default function JDTemplateBuilderModal({ open, onClose, onSaved, editTem
               <input
                 type="color"
                 value={primaryColor}
-                onChange={(e) => handlePrimaryColorChange(e.target.value)}
-                style={{ width: 60, height: 38, border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer' }}
+                onChange={(e) => !viewOnly && handlePrimaryColorChange(e.target.value)}
+                disabled={viewOnly}
+                style={{ width: 60, height: 38, border: '1px solid #d1d5db', borderRadius: 6, cursor: viewOnly ? 'default' : 'pointer', opacity: viewOnly ? 0.6 : 1 }}
               />
             </div>
           </div>
 
+          {/* Upload zone — import from DOCX (hidden in view/edit mode) */}
+          {!editTemplate && !viewOnly && <div style={{
+            border: '1px dashed #d1d5db', borderRadius: 8, padding: '14px 16px',
+            marginBottom: 20, background: '#f9fafb',
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+              Import from document{' '}
+              <span style={{ fontWeight: 400, color: '#6b7280' }}>(optional)</span>
+            </div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => parseFileRef.current && parseFileRef.current.click()}
+                style={{
+                  padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db',
+                  background: '#fff', cursor: 'pointer', fontSize: 13, color: '#374151',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                📎 {parseFile ? parseFile.name : 'Choose .docx file'}
+              </button>
+              <input
+                ref={parseFileRef}
+                type="file"
+                accept=".docx"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  setParseFile(e.target.files[0] || null);
+                  setParseError('');
+                  // Reset input so same file can be re-selected
+                  e.target.value = '';
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleParseAndFill}
+                disabled={!parseFile || parsing}
+                style={{
+                  padding: '6px 18px', borderRadius: 6, border: 'none',
+                  background: (!parseFile || parsing) ? '#93c5fd' : '#3b82f6',
+                  color: '#fff', cursor: (!parseFile || parsing) ? 'not-allowed' : 'pointer',
+                  fontSize: 13, fontWeight: 600,
+                }}
+              >
+                {parsing ? 'Parsing…' : 'Parse & Fill ▶'}
+              </button>
+            </div>
+            {parseError && (
+              <div style={{
+                marginTop: 8, padding: '6px 10px', borderRadius: 5,
+                background: '#fef2f2', border: '1px solid #fca5a5',
+                color: '#dc2626', fontSize: 12,
+              }}>
+                {parseError}
+              </div>
+            )}
+            {!parseError && (
+              <div style={{ marginTop: 6, fontSize: 12, color: '#9ca3af' }}>
+                Upload a .docx JD template — sections are auto-detected and fill the form below. You can edit before saving.
+              </div>
+            )}
+          </div>}
+
           {/* Sections */}
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#374151' }}>
-            Sections (uncheck "Include" to hide a section from generated JDs)
+            Sections {viewOnly ? '' : '(uncheck "Include" to hide a section from generated JDs)'}
           </div>
           {sections.map((sec, idx) => (
             <SectionRow
               key={idx}
               section={sec}
               primaryColor={primaryColor}
-              onUpdate={(updated) => updateSection(idx, updated)}
+              onUpdate={(updated) => !viewOnly && updateSection(idx, updated)}
+              viewOnly={viewOnly}
             />
           ))}
 
@@ -401,15 +537,27 @@ export default function JDTemplateBuilderModal({ open, onClose, onSaved, editTem
               padding: '8px 20px', borderRadius: 6, border: '1px solid #d1d5db',
               background: '#fff', cursor: 'pointer', fontSize: 14,
             }}
-          >Cancel</button>
-          <button
-            type="button" onClick={handleSave} disabled={saving}
-            style={{
-              padding: '8px 24px', borderRadius: 6, border: 'none',
-              background: saving ? '#93c5fd' : '#3b82f6', color: '#fff',
-              cursor: saving ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 600,
-            }}
-          >{saving ? 'Saving…' : 'Save Template'}</button>
+          >{viewOnly ? 'Close' : 'Cancel'}</button>
+          {viewOnly ? (
+            <button
+              type="button"
+              onClick={() => onSwitchToEdit && onSwitchToEdit()}
+              style={{
+                padding: '8px 24px', borderRadius: 6, border: 'none',
+                background: '#3b82f6', color: '#fff',
+                cursor: 'pointer', fontSize: 14, fontWeight: 600,
+              }}
+            >✏️ Edit Template</button>
+          ) : (
+            <button
+              type="button" onClick={handleSave} disabled={saving}
+              style={{
+                padding: '8px 24px', borderRadius: 6, border: 'none',
+                background: saving ? '#93c5fd' : '#3b82f6', color: '#fff',
+                cursor: saving ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 600,
+              }}
+            >{saving ? 'Saving…' : 'Save Template'}</button>
+          )}
         </div>
       </div>
     </div>
