@@ -43,10 +43,14 @@ function jdJsonToMarkdown(jd) {
   if (Array.isArray(jd.key_accountabilities) && jd.key_accountabilities.length > 0) {
     lines.push('## 3. KEY ACCOUNTABILITIES');
     for (const acc of jd.key_accountabilities) {
-      if (acc.section) lines.push(`**${acc.section}**`);
-      if (Array.isArray(acc.bullets)) acc.bullets.forEach((b) => lines.push(`- ${b}`));
-      lines.push('');
+      if (typeof acc === 'string') {
+        lines.push(`- ${acc}`);
+      } else {
+        if (acc.section) lines.push(`**${acc.section}**`);
+        if (Array.isArray(acc.bullets)) acc.bullets.forEach((b) => lines.push(`- ${b}`));
+      }
     }
+    lines.push('');
   }
 
   const fin = jd.financial_dimensions;
@@ -191,16 +195,23 @@ function JDViewModal({ jd, onClose, onDownload, downloading }) {
             <div className="jd-history-section">
               <div className="jd-history-section-header">3. KEY ACCOUNTABILITIES</div>
               <div className="jd-history-section-body">
-                {content.key_accountabilities.map((acc, i) => (
-                  <div key={i} className="jd-history-accountability">
-                    {acc.section && <div className="jd-history-accountability-title">{acc.section}</div>}
-                    {Array.isArray(acc.bullets) && (
-                      <ul className="jd-history-list">
-                        {acc.bullets.map((b, j) => <li key={j}>{b}</li>)}
-                      </ul>
-                    )}
-                  </div>
-                ))}
+                {/* Support both flat string arrays (current format) and legacy {section, bullets} objects */}
+                {typeof content.key_accountabilities[0] === 'string' ? (
+                  <ul className="jd-history-list">
+                    {content.key_accountabilities.map((b, i) => <li key={i}>{b}</li>)}
+                  </ul>
+                ) : (
+                  content.key_accountabilities.map((acc, i) => (
+                    <div key={i} className="jd-history-accountability">
+                      {acc.section && <div className="jd-history-accountability-title">{acc.section}</div>}
+                      {Array.isArray(acc.bullets) && (
+                        <ul className="jd-history-list">
+                          {acc.bullets.map((b, j) => <li key={j}>{b}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}

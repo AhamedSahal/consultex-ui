@@ -18,6 +18,38 @@ import { parseOrgChart, startBatchRun, cancelBatchRun, getBatchRun } from './ser
 const raw = import.meta.env.VITE_API_URL || '';
 const API_BASE = raw && !/^https?:\/\//i.test(raw) ? `https://${raw}` : raw;
 
+const MODEL_GROUPS = [
+  {
+    label: 'CLAUDE',
+    models: [
+      { id: 'claude-opus-4-6',   name: 'Opus 4.6' },
+      { id: 'claude-sonnet-4-6', name: 'Sonnet 4.6' },
+      { id: 'claude-haiku-4-5',  name: 'Haiku 4.5' },
+    ],
+  },
+  {
+    label: 'OPENAI',
+    models: [
+      { id: 'gpt-4o',       name: 'GPT-4o' },
+      { id: 'gpt-4o-mini',  name: 'GPT-4o mini' },
+      { id: 'gpt-4-turbo',  name: 'GPT-4 Turbo' },
+    ],
+  },
+];
+
+function getModelLabel(modelId) {
+  for (const group of MODEL_GROUPS) {
+    const found = group.models.find((m) => m.id === modelId);
+    if (found) return found.name;
+  }
+  return modelId || 'Select model';
+}
+
+const MODEL_SELECT_OPTIONS = MODEL_GROUPS.map((group) => ({
+  label: <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, letterSpacing: 1 }}>{group.label}</span>,
+  options: group.models.map((m) => ({ value: m.id, label: m.name })),
+}));
+
 const LEVEL_OPTIONS = [
   'C-Level', 'VP', 'Director', 'Head',
   'Senior Manager', 'Manager', 'Assistant Manager',
@@ -28,7 +60,7 @@ const LEVEL_OPTIONS = [
 
 // ─── Step 0: Source Selection ────────────────────────────────────────────────
 
-function StepSource({ source, setSource, onNext, onClose }) {
+function StepSource({ source, setSource, onNext, onClose, model, setModel }) {
   return (
     <div style={{ padding: '8px 0' }}>
       <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>
@@ -67,7 +99,20 @@ function StepSource({ source, setSource, onNext, onClose }) {
         </Radio>
       </Radio.Group>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 32 }}>
+      {/* Model picker */}
+      <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ color: 'var(--text-muted)', fontSize: 13, whiteSpace: 'nowrap' }}>AI Model</span>
+        <Select
+          value={model}
+          onChange={setModel}
+          options={MODEL_SELECT_OPTIONS}
+          style={{ flex: 1 }}
+          popupMatchSelectWidth={false}
+          optionLabelProp="label"
+        />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
         <Button onClick={onClose} style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--panel-border)' }}>
           Cancel
         </Button>
@@ -455,13 +500,14 @@ function StepProgress({ runId, roles, onClose }) {
 // ─── Main Modal ──────────────────────────────────────────────────────────────
 
 export default function BatchJDModal({ open, onClose, selectedCompany, playbookId, selectedModel }) {
-  const [step,      setStep]    = useState(0); // 0=source, 1=review, 2=progress
-  const [source,    setSource]  = useState('org_chart');
-  const [roles,     setRoles]   = useState([]);
-  const [parsing,   setParsing] = useState(false);
-  const [starting,  setStarting] = useState(false);
-  const [runId,     setRunId]   = useState(null);
-  const [showManual, setShowManual] = useState(false);
+  const [step,        setStep]       = useState(0); // 0=source, 1=review, 2=progress
+  const [source,      setSource]     = useState('org_chart');
+  const [roles,       setRoles]      = useState([]);
+  const [parsing,     setParsing]    = useState(false);
+  const [starting,    setStarting]   = useState(false);
+  const [runId,       setRunId]      = useState(null);
+  const [showManual,  setShowManual] = useState(false);
+  const [batchModel,  setBatchModel] = useState(selectedModel || 'claude-sonnet-4-6');
 
   const companyId = selectedCompany?.id;
 
@@ -473,6 +519,7 @@ export default function BatchJDModal({ open, onClose, selectedCompany, playbookI
     setStarting(false);
     setRunId(null);
     setShowManual(false);
+    setBatchModel(selectedModel || 'claude-sonnet-4-6');
   };
 
   const handleClose = () => {
@@ -495,7 +542,7 @@ export default function BatchJDModal({ open, onClose, selectedCompany, playbookI
 
     setParsing(true);
     try {
-      const data = await parseOrgChart(companyId, selectedModel);
+      const data = await parseOrgChart(companyId, batchModel);
       const extracted = (data.roles || []).map((r, i) => ({ ...r, _key: i }));
       if (!extracted.length) {
         antMessage.warning('No roles found in org chart. Try entering roles manually.');
@@ -530,7 +577,7 @@ export default function BatchJDModal({ open, onClose, selectedCompany, playbookI
         companyId,
         playbookId: playbookId || undefined,
         roles: validRoles,
-        selectedModel,
+        selectedModel: batchModel,
       });
       setRunId(data.runId);
       setRoles(validRoles); // keep only valid ones for progress display
@@ -577,7 +624,7 @@ export default function BatchJDModal({ open, onClose, selectedCompany, playbookI
 
       {/* Step 0: Source Selection */}
       {step === 0 && !showManual && !parsing && (
-        <StepSource source={source} setSource={setSource} onNext={handleSourceNext} onClose={handleClose} />
+        <StepSource source={source} setSource={setSource} onNext={handleSourceNext} onClose={handleClose} model={batchModel} setModel={setBatchModel} />
       )}
 
       {step === 0 && parsing && (
