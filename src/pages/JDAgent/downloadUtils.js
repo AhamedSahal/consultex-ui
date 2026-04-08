@@ -616,6 +616,50 @@ export async function downloadAsWord(markdownContent, fileName = 'job-descriptio
   triggerDownload(blob, `${fileName}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 }
 
+export async function getWordBlob(markdownContent, company = null, templateTheme = null) {
+  const sectionBg = getSectionBg(templateTheme);
+  const blocks = parseMarkdown(markdownContent);
+  const titleBlock = blocks.find((b) => b.type === 'heading' && b.level <= 2);
+  const rawTitle = titleBlock ? stripInline(titleBlock.text) : '';
+  const isGenericTitle = rawTitle.trim().toUpperCase() === 'JOB DESCRIPTION';
+  const potentialJobTitleBlock = isGenericTitle ? blocks.find((b) => b.type === 'heading' && b !== titleBlock) : null;
+  const isKnownJdSection = (text) =>
+    /\b(INFORMATION|PURPOSE|ACCOUNTABILITIES|FINANCIAL|COMMUNICATIONS|QUALIFICATION|TECHNICAL|COMPETENCIES|SPECIAL|APPROVED|RESPONSIBILITIES)\b/i.test(text);
+  const jobTitleBlock = (potentialJobTitleBlock &&
+    !/^\d+[\.\s]/.test(stripInline(potentialJobTitleBlock.text).trim()) &&
+    !isKnownJdSection(stripInline(potentialJobTitleBlock.text).trim()))
+    ? potentialJobTitleBlock : null;
+
+  const headerTable = await makeHeaderTable(company);
+  const docChildren = [headerTable, new Paragraph({ text: '', spacing: { after: 160 } })];
+  const skipBlocks = new Set([titleBlock, jobTitleBlock].filter(Boolean));
+  let currentSectionTitle = null;
+  let currentSectionBlocks = [];
+
+  for (const block of blocks) {
+    if (skipBlocks.has(block)) continue;
+    if (block.type === 'heading') {
+      if (currentSectionTitle !== null) {
+        docChildren.push(makeWordSection(currentSectionTitle, currentSectionBlocks, sectionBg));
+        docChildren.push(new Paragraph({ text: '', spacing: { after: 120 } }));
+        currentSectionBlocks = [];
+      }
+      currentSectionTitle = block.text;
+    } else {
+      if (currentSectionTitle !== null) currentSectionBlocks.push(block);
+    }
+  }
+  if (currentSectionTitle !== null) {
+    docChildren.push(makeWordSection(currentSectionTitle, currentSectionBlocks, sectionBg));
+  }
+
+  const doc = new Document({
+    styles: { default: { document: { run: { font: 'Calibri', size: 20 } } } },
+    sections: [{ properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } }, children: docChildren }],
+  });
+  return Packer.toBlob(doc);
+}
+
 // ---------------------------------------------------------------------------
 // PDF export
 // ---------------------------------------------------------------------------
@@ -811,6 +855,117 @@ export async function downloadAsPdf(markdownContent, fileName = 'job-description
     }
 
     pdf.save(`${fileName}.pdf`);
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
+export async function getPdfBlob(markdownContent, company = null, templateTheme = null) {
+  const sectionColorHex = templateTheme?.primaryColor || '#193d6d';
+  const blocks = parseMarkdown(markdownContent);
+  const titleBlock = blocks.find((b) => b.type === 'heading' && b.level <= 2);
+  const rawTitle = titleBlock ? stripInline(titleBlock.text) : '';
+  const isGenericTitle = rawTitle.trim().toUpperCase() === 'JOB DESCRIPTION';
+  const potentialJobTitleBlock = isGenericTitle ? blocks.find((b) => b.type === 'heading' && b !== titleBlock) : null;
+  const isKnownJdSectionPdf = (text) =>
+    /\b(INFORMATION|PURPOSE|ACCOUNTABILITIES|FINANCIAL|COMMUNICATIONS|QUALIFICATION|TECHNICAL|COMPETENCIES|SPECIAL|APPROVED|RESPONSIBILITIES)\b/i.test(text);
+  const jobTitleBlock = (potentialJobTitleBlock &&
+    !/^\d+[\.\s]/.test(stripInline(potentialJobTitleBlock.text).trim()) &&
+    !isKnownJdSectionPdf(stripInline(potentialJobTitleBlock.text).trim()))
+    ? potentialJobTitleBlock : null;
+
+  const hasCompany = company && company.name;
+  const logoUrl = hasCompany ? (company.logoUrl || company.logo_url || null) : null;
+  const logo = await fetchLogoAsNormalizedPng(logoUrl, 110, 56);
+
+  let headerHtml;
+  if (hasCompany) {
+    const logoImg = logo
+      ? `<img src="${logo.dataUrl}" style="max-height:56px;max-width:110px;display:block;margin:0 auto 6px;border-radius:8px;" />`
+      : '';
+    headerHtml = `<div style="display:flex;border:2px solid #2E75B6;margin-bottom:16px;">
+      <div style="width:25%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 12px;border-right:2px solid #2E75B6;background:#fff;">${logoImg}
+        <div style="font-size:12px;font-weight:700;color:#1F3864;text-align:center;">${company.name}</div>
+      </div>
+      <div style="width:75%;display:flex;align-items:center;justify-content:center;padding:16px;background:#fff;">
+        <div style="font-size:22px;font-weight:700;color:#1F3864;letter-spacing:2px;">JOB DESCRIPTION</div>
+      </div></div>`;
+  } else {
+    headerHtml = `<div style="border:2px solid #2E75B6;padding:20px;margin-bottom:16px;text-align:center;background:#fff;">
+      <div style="font-size:22px;font-weight:700;color:#1F3864;letter-spacing:2px;">JOB DESCRIPTION</div></div>`;
+  }
+
+  const skipBlocks = new Set([titleBlock, jobTitleBlock].filter(Boolean));
+  let bodyHtml = '';
+  let currentSectionTitle = null;
+  let currentSectionBlocks = [];
+
+  function flushSection() {
+    if (currentSectionTitle === null) return;
+    const isJobInfo = isJobInfoSection(currentSectionTitle);
+    const isApprovals = isApprovalsSection(currentSectionTitle);
+    let contentHtml = '';
+    if (isJobInfo) {
+      const pairs = parseKeyValuePairs(currentSectionBlocks);
+      if (pairs.length > 0) {
+        contentHtml = '<table style="width:100%;border-collapse:collapse;">';
+        for (let i = 0; i < pairs.length; i += 2) {
+          const left = pairs[i]; const right = i + 1 < pairs.length ? pairs[i + 1] : { key: '', value: '' };
+          contentHtml += `<tr><td style="font-size:11px;font-weight:700;color:#000;padding:5px 8px;border:1px solid #BFBFBF;width:20%;">${left.key}:</td><td style="font-size:11px;color:#595959;padding:5px 8px;border:1px solid #BFBFBF;width:30%;">${left.value}</td><td style="font-size:11px;font-weight:700;color:#000;padding:5px 8px;border:1px solid #BFBFBF;width:25%;">${right.key ? right.key + ':' : ''}</td><td style="font-size:11px;color:#595959;padding:5px 8px;border:1px solid #BFBFBF;width:25%;">${right.value}</td></tr>`;
+        }
+        contentHtml += '</table>';
+      }
+    } else if (isApprovals) {
+      const rawPairs = parseKeyValuePairs(currentSectionBlocks);
+      const pairs = rawPairs.length > 0 ? rawPairs : [{ key: 'Prepared By', value: '' }, { key: 'Approved By', value: '' }, { key: 'Date', value: '' }];
+      const colPct = Math.floor(100 / pairs.length);
+      contentHtml = '<table style="width:100%;border-collapse:collapse;"><tr>';
+      pairs.forEach((p) => { contentHtml += `<td style="font-size:11px;font-weight:700;color:#000;padding:6px 8px;border:1px solid #BFBFBF;width:${colPct}%;">${p.key}:</td>`; });
+      contentHtml += '</tr><tr>';
+      pairs.forEach((p) => { contentHtml += `<td style="font-size:11px;color:#595959;padding:18px 8px 6px;border:1px solid #BFBFBF;width:${colPct}%;">${p.value === 'TBD' ? '' : (p.value || '')}</td>`; });
+      contentHtml += '</tr></table>';
+    }
+    if (!contentHtml) {
+      for (const block of currentSectionBlocks) {
+        if (block.type === 'bullet') { contentHtml += '<ul style="margin:4px 0 4px 18px;padding:0;">'; block.items.forEach((item) => { contentHtml += `<li style="font-size:11px;color:#333;margin:3px 0;">${renderInlineHtml(item)}</li>`; }); contentHtml += '</ul>'; }
+        else if (block.type === 'numbered') { contentHtml += '<ol style="margin:4px 0 4px 18px;padding:0;">'; block.items.forEach((item) => { contentHtml += `<li style="font-size:11px;color:#333;margin:3px 0;">${renderInlineHtml(item)}</li>`; }); contentHtml += '</ol>'; }
+        else if (block.type === 'paragraph') { contentHtml += `<p style="font-size:11px;color:#333;margin:4px 0;line-height:1.5;">${renderInlineHtml(block.text)}</p>`; }
+        else if (block.type === 'heading') { contentHtml += `<div style="font-size:11px;font-weight:700;color:#1F3864;margin:6px 0 3px;">${stripInline(block.text)}</div>`; }
+      }
+    }
+    bodyHtml += `<div style="margin-bottom:10px;border:1px solid ${sectionColorHex};"><div style="background:${sectionColorHex};color:#fff;font-size:12px;font-weight:700;padding:7px 10px;">${stripInline(currentSectionTitle)}</div><div style="padding:10px 12px;background:#fff;">${contentHtml || ''}</div></div>`;
+    currentSectionTitle = null; currentSectionBlocks = [];
+  }
+
+  for (const block of blocks) {
+    if (skipBlocks.has(block)) continue;
+    if (block.type === 'heading') { flushSection(); currentSectionTitle = block.text; }
+    else if (currentSectionTitle !== null) { currentSectionBlocks.push(block); }
+  }
+  flushSection();
+
+  const fullHtml = `<div style="font-family:Calibri,Arial,sans-serif;width:750px;padding:0;background:#fff;color:#000;">${headerHtml}<div style="padding:0 24px 32px;">${bodyHtml}</div></div>`;
+  const container = document.createElement('div');
+  container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;z-index:-1;';
+  container.innerHTML = fullHtml;
+  document.body.appendChild(container);
+
+  try {
+    const canvas = await html2canvas(container.firstElementChild, { scale: 2, useCORS: true, allowTaint: false, backgroundColor: '#ffffff' });
+    const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth(); const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 20; const imgW = pageW - margin * 2; const imgH = (canvas.height * imgW) / canvas.width;
+    let remainingH = imgH; let y = margin;
+    while (remainingH > 0) {
+      const sliceH = Math.min(pageH - margin * 2, remainingH);
+      const srcY = (imgH - remainingH) * (canvas.height / imgH); const srcH = sliceH * (canvas.height / imgH);
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width; pageCanvas.height = srcH;
+      pageCanvas.getContext('2d').drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+      pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', margin, y, imgW, sliceH);
+      remainingH -= sliceH; if (remainingH > 0) { pdf.addPage(); y = margin; }
+    }
+    return new Blob([pdf.output('arraybuffer')], { type: 'application/pdf' });
   } finally {
     document.body.removeChild(container);
   }
