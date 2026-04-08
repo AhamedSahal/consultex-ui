@@ -11,9 +11,11 @@ import {
   CloseOutlined,
   FilterOutlined,
   ReloadOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
+import JSZip from 'jszip';
 import { fetchJdHistory, fetchJdById, fetchCompanies, deleteJd } from './service';
-import { downloadAsWord, downloadAsPdf } from './downloadUtils';
+import { downloadAsWord, downloadAsPdf, getWordBlob, getPdfBlob } from './downloadUtils';
 
 // ---------------------------------------------------------------------------
 // Convert the 10-section JD JSON to markdown for download/preview
@@ -365,6 +367,42 @@ function DeleteConfirmModal({ jd, onConfirm, onCancel, deleting }) {
 }
 
 // ---------------------------------------------------------------------------
+function BulkDeleteConfirmModal({ count, onConfirm, onCancel, deleting }) {
+  return (
+    <div className="jd-history-modal-overlay" onClick={onCancel}>
+      <div className="jd-history-confirm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="jd-history-confirm-icon">
+          <ExclamationCircleOutlined />
+        </div>
+        <div className="jd-history-confirm-title">Delete {count} JD{count !== 1 ? 's' : ''}</div>
+        <div className="jd-history-confirm-body">
+          Are you sure you want to delete <strong>{count} selected job description{count !== 1 ? 's' : ''}</strong>? This action cannot be undone.
+        </div>
+        <div className="jd-history-confirm-actions">
+          <button
+            type="button"
+            className="jd-history-confirm-cancel"
+            onClick={onCancel}
+            disabled={deleting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="jd-history-confirm-delete"
+            onClick={onConfirm}
+            disabled={deleting}
+          >
+            <DeleteOutlined />
+            <span>{deleting ? 'Deleting…' : `Delete ${count}`}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 export default function JDHistoryTab() {
   const navigate = useNavigate();
 
@@ -378,17 +416,29 @@ export default function JDHistoryTab() {
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
+
   // View modal
   const [viewJd, setViewJd] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [downloading, setDownloading] = useState(null);
 
+  // Selection & bulk download
+  const [selected, setSelected] = useState(new Set());
+  const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [bulkFormat, setBulkFormat] = useState('word');
+
   // Delete confirm
   const [confirmDeleteJd, setConfirmDeleteJd] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const loadJds = useCallback(async () => {
     setLoading(true);
+    setPage(1);
     try {
       const data = await fetchJdHistory({
         search: search || undefined,
@@ -397,8 +447,10 @@ export default function JDHistoryTab() {
         type: typeFilter !== 'all' ? typeFilter : undefined,
       });
       setJds(Array.isArray(data) ? data : []);
+      setSelected(new Set());
     } catch {
       setJds([]);
+      setSelected(new Set());
     } finally {
       setLoading(false);
     }
@@ -483,6 +535,63 @@ export default function JDHistoryTab() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkDeleting(true);
+    try {
+      await Promise.all(ids.map((id) => deleteJd(id).catch(() => {})));
+      setJds((prev) => prev.filter((j) => !ids.includes(j.id)));
+      setSelected(new Set());
+      setConfirmBulkDelete(false);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleBulkDownload = async (format, overrideIds) => {
+    const ids = overrideIds ?? [...selected];
+    if (ids.length === 0) return;
+    setBulkDownloading(true);
+    try {
+      const zip = new JSZip();
+      await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const full = await fetchJdById(id);
+            if (!full?.content) return;
+            const markdown = jdJsonToMarkdown(full.content);
+            const slug = (full.content.job_information?.job_title || full.title || 'job-description')
+              .replace(/[^a-zA-Z0-9]/g, '-')
+              .toLowerCase();
+            if (format === 'word') {
+              const blob = await getWordBlob(markdown, null, null);
+              zip.file(`${slug}.docx`, blob);
+            } else {
+              const blob = await getPdfBlob(markdown, null, null);
+              zip.file(`${slug}.pdf`, blob);
+            }
+          } catch {
+            // skip failed JD silently
+          }
+        })
+      );
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `jd-export-${format}-${Date.now()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // silent
+    } finally {
+      setBulkDownloading(false);
+    }
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('en-GB', {
@@ -547,6 +656,46 @@ export default function JDHistoryTab() {
         >
           <ReloadOutlined />
         </button>
+
+        <div className="jd-history-bulk-wrap">
+          <select
+            className="jd-history-select jd-history-bulk-format"
+            value={bulkFormat}
+            onChange={(e) => setBulkFormat(e.target.value)}
+            disabled={bulkDownloading}
+          >
+            <option value="word">Word (.docx)</option>
+            <option value="pdf">PDF</option>
+          </select>
+          <button
+            type="button"
+            className="jd-history-bulk-btn"
+            disabled={bulkDownloading || (selected.size === 0 ? jds.length === 0 : false)}
+            onClick={() => handleBulkDownload(bulkFormat, selected.size > 0 ? [...selected] : jds.map((j) => j.id))}
+            title={selected.size > 0 ? `Download ${selected.size} selected as ZIP` : 'Download all JDs as ZIP'}
+          >
+            <DownloadOutlined />
+            <span>
+              {bulkDownloading
+                ? 'Zipping…'
+                : selected.size > 0
+                ? `Download Selected (${selected.size})`
+                : 'Download All'}
+            </span>
+          </button>
+          {selected.size > 0 && (
+            <button
+              type="button"
+              className="jd-history-bulk-btn jd-history-bulk-delete-btn"
+              disabled={bulkDeleting}
+              onClick={() => setConfirmBulkDelete(true)}
+              title={`Delete ${selected.size} selected`}
+            >
+              <DeleteOutlined />
+              <span>{bulkDeleting ? 'Deleting…' : `Delete Selected (${selected.size})`}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Table ── */}
@@ -559,9 +708,23 @@ export default function JDHistoryTab() {
             <p className="jd-history-empty-sub">Generate JDs through the chat or batch mode, then they will appear here.</p>
           </div>
         ) : (
+          <>
           <table className="jd-history-table">
             <thead>
               <tr>
+                <th className="jd-history-th-check">
+                  <input
+                    type="checkbox"
+                    className="jd-history-checkbox"
+                    checked={jds.length > 0 && jds.every((j) => selected.has(j.id))}
+                    ref={(el) => { if (el) el.indeterminate = selected.size > 0 && !jds.every((j) => selected.has(j.id)); }}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelected(new Set(jds.map((j) => j.id)));
+                      else setSelected(new Set());
+                    }}
+                    title="Select all"
+                  />
+                </th>
                 <th>Job Title</th>
                 <th>Company</th>
                 <th>Department</th>
@@ -572,8 +735,23 @@ export default function JDHistoryTab() {
               </tr>
             </thead>
             <tbody>
-              {jds.map((row) => (
-                <tr key={row.id}>
+              {jds.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((row) => (
+                <tr key={row.id} className={selected.has(row.id) ? 'jd-history-row-selected' : ''}>
+                  <td className="jd-history-td-check">
+                    <input
+                      type="checkbox"
+                      className="jd-history-checkbox"
+                      checked={selected.has(row.id)}
+                      onChange={(e) => {
+                        setSelected((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(row.id);
+                          else next.delete(row.id);
+                          return next;
+                        });
+                      }}
+                    />
+                  </td>
                   <td className="jd-history-td-title">
                     {row.job_title || row.title}
                     {row.description && (
@@ -645,6 +823,64 @@ export default function JDHistoryTab() {
               ))}
             </tbody>
           </table>
+          {/* ── Pagination ── */}
+          {jds.length > PAGE_SIZE && (() => {
+            const totalPages = Math.ceil(jds.length / PAGE_SIZE);
+            const start = (page - 1) * PAGE_SIZE + 1;
+            const end = Math.min(page * PAGE_SIZE, jds.length);
+            return (
+              <div className="jd-history-pagination">
+                <span className="jd-history-pagination-info">
+                  {start}–{end} of {jds.length}
+                </span>
+                <div className="jd-history-pagination-controls">
+                  <button
+                    className="jd-history-page-btn"
+                    onClick={() => setPage(1)}
+                    disabled={page === 1}
+                    title="First page"
+                  >«</button>
+                  <button
+                    className="jd-history-page-btn"
+                    onClick={() => setPage((p) => p - 1)}
+                    disabled={page === 1}
+                    title="Previous page"
+                  >‹</button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                    .reduce((acc, p, idx, arr) => {
+                      if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item, idx) =>
+                      item === '…' ? (
+                        <span key={`ellipsis-${idx}`} className="jd-history-page-ellipsis">…</span>
+                      ) : (
+                        <button
+                          key={item}
+                          className={`jd-history-page-btn${item === page ? ' active' : ''}`}
+                          onClick={() => setPage(item)}
+                        >{item}</button>
+                      )
+                    )}
+                  <button
+                    className="jd-history-page-btn"
+                    onClick={() => setPage((p) => p + 1)}
+                    disabled={page === totalPages}
+                    title="Next page"
+                  >›</button>
+                  <button
+                    className="jd-history-page-btn"
+                    onClick={() => setPage(totalPages)}
+                    disabled={page === totalPages}
+                    title="Last page"
+                  >»</button>
+                </div>
+              </div>
+            );
+          })()}
+          </>
         )}
       </div>
 
@@ -665,6 +901,16 @@ export default function JDHistoryTab() {
           onConfirm={handleDeleteConfirm}
           onCancel={() => !deleting && setConfirmDeleteJd(null)}
           deleting={deleting}
+        />
+      )}
+
+      {/* ── Bulk Delete Confirm Modal ── */}
+      {confirmBulkDelete && (
+        <BulkDeleteConfirmModal
+          count={selected.size}
+          onConfirm={handleBulkDelete}
+          onCancel={() => !bulkDeleting && setConfirmBulkDelete(false)}
+          deleting={bulkDeleting}
         />
       )}
     </div>
