@@ -21,6 +21,8 @@ import JDAgentPage from './pages/JDAgent/index';
 import HRManualAgentPage from './pages/HRManualAgent/index';
 import CompaniesPage from './pages/Companies';
 import CompanyWorkspacePage from './pages/Companies/Workspace';
+import AdminUsers from './pages/AdminUsers';
+import PaylensePage from './pages/Paylense/landing';
 
 function App() {
   const { user, loading, logout } = useAuth();
@@ -58,6 +60,7 @@ function App() {
                     <Route path="/agents/jd-agent" element={<JDAgentPage />} />
                     <Route path="/agents/hr-manual-agent" element={<HRManualAgentPage />} />
                     <Route path="/companies" element={<CompaniesPage />} />
+                    <Route path="/paylense" element={<PaylensePage />} />
                     <Route path="/companies/:companyId/workspace" element={<CompanyWorkspacePage />} />
                     <Route path="/connect" element={<Connect />} />
                     <Route path="/reports" element={<Reports />} />
@@ -66,6 +69,9 @@ function App() {
                     <Route path="/chats" element={<Chats />} />
                     <Route path="/ai" element={<AIChat />} />
                     <Route path="/settings" element={<Settings />} />
+                    {user?.role === 'ADMIN' && (
+                      <Route path="/admin/users" element={<AdminUsers />} />
+                    )}
                     <Route path="/jd/new" element={<JDWizard />} />
                     <Route path="/jd/:id" element={<JDWizard />} />
                   </Routes>

@@ -1,0 +1,127 @@
+import api from '../../api/axios';
+
+export async function uploadFile({ documentNumber, name, file }) {
+  const fd = new FormData();
+  fd.append('document_number', documentNumber);
+  fd.append('name', name);
+  fd.append('file', file);
+  const res = await api.post('/paylense/upload', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data; // { id, row_count }
+}
+
+export async function fetchUploads() {
+  const res = await api.get('/paylense/uploads');
+  return res.data;
+}
+
+export async function fetchData({ uploadId, filters = {}, limit = 200, offset = 0 }) {
+  const params = { upload_id: uploadId, limit, offset, ...filters };
+  const res = await api.get('/paylense/data', { params });
+  return res.data; // { rows, total }
+}
+
+export async function fetchFilters(uploadId) {
+  const res = await api.get('/paylense/filters', { params: { upload_id: uploadId } });
+  return res.data; // { companies, countries, grades, job_functions, industries, currencies }
+}
+
+export async function deleteUpload(id) {
+  const res = await api.delete(`/paylense/uploads/${id}`);
+  return res.data;
+}
+
+export async function fetchPreferences() {
+  const res = await api.get('/paylense/preferences');
+  return res.data; // { visibleColumns: [...] | null }
+}
+
+export async function savePreferences(visibleColumns) {
+  const res = await api.put('/paylense/preferences', { visibleColumns });
+  return res.data;
+}
+
+export async function generateInsight({ uploadId, filters = {}, search }) {
+  const res = await api.post('/paylense/ai-summary', {
+    upload_id: uploadId,
+    filters,
+    search: search || undefined,
+  });
+  return res.data; // { summary: "..." }
+}
+
+export async function fetchStats({ uploadId, filters = {} }) {
+  const params = { upload_id: uploadId, ...filters };
+  const res = await api.get('/paylense/stats', { params });
+  return res.data;
+}
+
+export async function fetchPercentileBands({ uploadId, filters = {} }) {
+  const params = { upload_id: uploadId, ...filters };
+  const res = await api.get('/paylense/percentile-bands', { params });
+  return res.data;
+}
+
+export async function fetchGradeProgression({ uploadId, filters = {} }) {
+  const params = { upload_id: uploadId, ...filters };
+  const res = await api.get('/paylense/grade-progression', { params });
+  return res.data;
+}
+
+export async function fetchCountryDistribution({ uploadId, filters = {} }) {
+  const params = { upload_id: uploadId, ...filters };
+  const res = await api.get('/paylense/country-distribution', { params });
+  return res.data;
+}
+
+export async function fetchTopJobs({ uploadId, filters = {}, limit = 10 }) {
+  const params = { upload_id: uploadId, ...filters, limit };
+  const res = await api.get('/paylense/top-jobs', { params });
+  return res.data;
+}
+
+export async function analyzePositioning({ uploadId, filters = {}, internalSalary, currency }) {
+  const res = await api.post('/paylense/ai-positioning', {
+    upload_id: uploadId,
+    filters,
+    internal_salary: internalSalary,
+    currency,
+  });
+  return res.data; // { analysis: "..." }
+}
+
+// ── Grade Level ────────────────────────────────────────────────────────────────
+
+export async function fetchGradeUploads() {
+  const res = await api.get('/paylense/grade-uploads');
+  return res.data;
+}
+
+export async function uploadGradeFile({ documentNumber, name, file }) {
+  const fd = new FormData();
+  fd.append('document_number', documentNumber);
+  fd.append('name', name);
+  fd.append('file', file);
+  const res = await api.post('/paylense/grade-upload', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data; // { id, row_count }
+}
+
+export async function deleteGradeUpload(id) {
+  const res = await api.delete(`/paylense/grade-uploads/${id}`);
+  return res.data;
+}
+
+export async function fetchGradeData({ uploadId, sheet, grade }) {
+  const params = { upload_id: uploadId, sheet };
+  if (grade) params.grade = grade;
+  const res = await api.get('/paylense/grade-data', { params });
+  return res.data; // { rows: [...], total }
+}
+
+export async function fetchGradeFilters(uploadId) {
+  const res = await api.get('/paylense/grade-filters', { params: { upload_id: uploadId } });
+  return res.data; // { grades: [...] }
+}

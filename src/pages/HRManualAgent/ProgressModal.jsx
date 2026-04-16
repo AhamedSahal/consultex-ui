@@ -9,6 +9,8 @@ import {
   CloseCircleOutlined,
   LoadingOutlined,
   CloseOutlined,
+  MinusOutlined,
+  FullscreenOutlined,
 } from '@ant-design/icons';
 import { cancelRun, getChanges, getExport, getRun, getRedFlags, getOpenItems, getTraceLog, exportRedFlagsDoc, exportOpenItemsDoc } from './service';
 
@@ -57,6 +59,7 @@ function diffWords(a, b) {
 }
 
 function ProgressModal({ open, runId, companyId, onClose, readOnly = false }) {
+  const [minimized, setMinimized]             = useState(false);
   const [logs, setLogs]                       = useState([]);
   const [step, setStep]                       = useState('');
   const [totalBatches, setTotalBatches]       = useState(0);
@@ -498,10 +501,55 @@ function ProgressModal({ open, runId, companyId, onClose, readOnly = false }) {
   // Status state for class modifiers
   const statusMod = done ? 'done' : cancelled ? 'cancelled' : failed ? 'failed' : 'active';
 
+  // ── Floating minimized widget ────────────────────────────────────────────────
+  if (open && minimized) {
+    return (
+      <div className="hrm-pm-mini-widget">
+        <div className={`hrm-pm-mini-widget__bar hrm-pm-mini-widget__bar--${statusMod}`}>
+          <div className="hrm-pm-mini-widget__icon">
+            {done      ? <CheckCircleOutlined />
+            : cancelled ? <CloseCircleOutlined />
+            : failed    ? <ExclamationCircleOutlined />
+            : <LoadingOutlined spin />}
+          </div>
+          <div className="hrm-pm-mini-widget__info">
+            <div className="hrm-pm-mini-widget__title">
+              {done ? 'Update Complete' : cancelled ? 'Stopped' : failed ? 'Failed' : 'Updating HR Manual…'}
+            </div>
+            <div className="hrm-pm-mini-widget__sub">
+              {isWaiting
+                ? 'Starting…'
+                : isTerminal
+                  ? (etaText || step || '')
+                  : `${completedBatches}/${totalBatches} sections · ${percent}%`}
+            </div>
+          </div>
+          {!isWaiting && !isTerminal && (
+            <div className="hrm-pm-mini-widget__ring">
+              <svg viewBox="0 0 36 36" className="hrm-pm-mini-ring-svg">
+                <circle cx="18" cy="18" r="15" className="hrm-pm-mini-ring-bg" />
+                <circle
+                  cx="18" cy="18" r="15"
+                  className="hrm-pm-mini-ring-fill"
+                  strokeDasharray={`${(percent / 100) * 94.2} 94.2`}
+                  strokeDashoffset="23.55"
+                />
+              </svg>
+              <span className="hrm-pm-mini-ring-pct">{percent}%</span>
+            </div>
+          )}
+          <button className="hrm-pm-mini-widget__restore" onClick={() => setMinimized(false)} title="Restore">
+            <FullscreenOutlined />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Modal
       title={null}
-      open={open}
+      open={open && !minimized}
       onCancel={onClose}
       footer={null}
       width={1140}
@@ -553,6 +601,11 @@ function ProgressModal({ open, runId, companyId, onClose, readOnly = false }) {
             >
               Notify when done
             </Checkbox>
+          )}
+          {!isTerminal && !readOnly && (
+            <button className="hrm-pm-minimize-btn" onClick={() => setMinimized(true)} title="Minimize">
+              <MinusOutlined />
+            </button>
           )}
           {(isTerminal || readOnly) && (
             <button className="hrm-pm-close-btn" onClick={onClose} title="Close">
