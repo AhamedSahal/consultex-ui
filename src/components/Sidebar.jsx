@@ -6,6 +6,7 @@ const menuItems = [
   { path: '/', label: 'Home', icon: '🏠' },
   { path: '/agents', label: 'HR Agents', icon: '👥' },
   { path: '/companies', label: 'Companies', icon: '🏢' },
+  { path: '/paylense', label: 'Paylense', icon: '📈' },
   { path: '/connect', label: 'Connect', icon: '🔗' },
   { path: '/reports', label: 'Reports', icon: '📊' },
   { path: '/resources', label: 'Resources', icon: '📁' },
@@ -45,6 +46,18 @@ function Sidebar({ user, onNewChat }) {
             <span>{item.label}</span>
           </NavLink>
         ))}
+        {user?.role === 'ADMIN' && (
+          <>
+            <div style={{ borderTop: '1px solid #e2e8f0', margin: '8px 0' }} />
+            <NavLink
+              to="/admin/users"
+              className={({ isActive }) => (isActive ? 'sidebar-item active' : 'sidebar-item')}
+            >
+              <span className="sidebar-icon">🛡️</span>
+              <span>User Approvals</span>
+            </NavLink>
+          </>
+        )}
       </div>
       <div className="sidebar-bottom">
         {user && (
