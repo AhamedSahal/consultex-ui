@@ -1,0 +1,316 @@
+/* ── Paylense Overview Page ─────────────────────────────────────────────────── */
+
+.plov-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 28px 40px;
+  overflow-y: auto;
+}
+
+/* ── Shared card base ────────────────────────────────────────────────────────── */
+.plov-hero-card,
+.plov-section-card,
+.plov-card {
+  background: #fff;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 28px 32px;
+}
+
+/* ── Hero card ────────────────────────────────────────────────────────────────── */
+.plov-hero-card {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.plov-hero-left {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plov-hero-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0;
+  line-height: 1;
+}
+
+.plov-badge {
+  display: inline-block;
+  width: fit-content;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #7c3aed;
+  background: #f3e8ff;
+  border-radius: 20px;
+  padding: 3px 12px;
+}
+
+.plov-hero-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 560px;
+  line-height: 1.6;
+}
+
+.plov-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────── */
+.plov-btn-primary {
+  padding: 9px 20px;
+  background: var(--orange);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.plov-btn-primary:hover { background: var(--orange-hover); }
+
+.plov-btn-ghost {
+  padding: 8px 20px;
+  background: none;
+  color: var(--text);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.plov-btn-ghost:hover { border-color: var(--orange); color: var(--orange); }
+
+/* ── Section label ───────────────────────────────────────────────────────────── */
+.plov-section-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+
+/* ── Data Coverage grid ──────────────────────────────────────────────────────── */
+.plov-coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+.plov-coverage-cell {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.plov-coverage-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  color: var(--text-muted);
+}
+
+.plov-coverage-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+/* ── Platform Capabilities ───────────────────────────────────────────────────── */
+.plov-caps-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.plov-cap-pill {
+  border: 1.5px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 14px 20px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  background: #fff;
+}
+
+/* ── Bottom two-column grid ──────────────────────────────────────────────────── */
+.plov-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* ── Individual card internals ───────────────────────────────────────────────── */
+.plov-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.plov-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.plov-card-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+
+.plov-card-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* Tags */
+.plov-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border-radius: 20px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.plov-tag--internal {
+  color: #d97706;
+  background: #fef3c7;
+}
+.plov-tag--restricted {
+  color: #16a34a;
+  background: #dcfce7;
+}
+
+/* Intelligence steps */
+.plov-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.plov-step-cell {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plov-step-icon {
+  color: var(--orange);
+}
+
+.plov-step-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.plov-step-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Benchmark meta grid */
+.plov-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.plov-meta-cell {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.plov-meta-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  color: var(--text-muted);
+}
+
+.plov-meta-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+/* What box */
+.plov-what-box {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.plov-what-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.plov-what-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.plov-what-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.plov-what-body {
+  font-size: 12px;
+  color: #6366f1;
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* Card footer */
+.plov-card-footer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}

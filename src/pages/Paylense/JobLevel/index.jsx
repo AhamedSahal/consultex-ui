@@ -224,59 +224,82 @@ export default function JobLevelTable({
 
   return (
     <>
-      {/* ── Toolbar ─────────────────────────────────────────────────────── */}
-      <div className="pl-toolbar">
-        <span className="pl-label">Dataset:</span>
-        <Select style={{ minWidth: 300 }} placeholder="Select an uploaded dataset"
-          value={activeUploadId || undefined} onChange={setActiveUploadId}
-          options={uploads.map(u => ({ value: u.id, label: `${u.document_number} — ${u.name} (${Number(u.row_count).toLocaleString()} rows)` }))}
-        />
-        {activeUploadId && (
-          <Popconfirm title="Delete this dataset?" description="All rows will be permanently removed."
-            onConfirm={onDelete} okText="Delete" okButtonProps={{ danger: true }}>
-            <button className="pl-delete-btn" title="Delete dataset">🗑</button>
-          </Popconfirm>
-        )}
-        {uploads.length > 0 && (
-          <span className="pl-uploads-summary">
-            {uploads.length} upload{uploads.length > 1 ? 's' : ''} · {uploads.reduce((s, u) => s + (u.row_count || 0), 0).toLocaleString()} total rows
-          </span>
-        )}
-        <button className="pl-upload-btn pl-toolbar-right" onClick={onOpenUpload}>↑ Upload Excel</button>
+      {/* ── Control bar ─────────────────────────────────────────────────── */}
+      <div className="pl-control-bar">
+
+        {/* Left: dataset selector */}
+        <div className="pl-control-left">
+          <div className="pl-dataset-row">
+            <span className="pl-label">Dataset</span>
+            <Select style={{ minWidth: 280 }} placeholder="Select an uploaded dataset"
+              value={activeUploadId || undefined} onChange={setActiveUploadId}
+              options={uploads.map(u => ({ value: u.id, label: `${u.document_number} — ${u.name} (${Number(u.row_count).toLocaleString()} rows)` }))}
+            />
+            {activeUploadId && (
+              <Popconfirm title="Delete this dataset?" description="All rows will be permanently removed."
+                onConfirm={onDelete} okText="Delete" okButtonProps={{ danger: true }}>
+                <button className="pl-delete-btn" title="Delete dataset">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                  </svg>
+                </button>
+              </Popconfirm>
+            )}
+            {uploads.length > 0 && (
+              <span className="pl-uploads-summary">
+                {uploads.length} upload{uploads.length > 1 ? 's' : ''} · {uploads.reduce((s, u) => s + (u.row_count || 0), 0).toLocaleString()} rows
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Right: upload button */}
+        <button className="pl-upload-btn" onClick={onOpenUpload}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Upload Excel
+        </button>
       </div>
 
-      {/* ── Filters ─────────────────────────────────────────────────────── */}
+      {/* ── Filters bar ─────────────────────────────────────────────────── */}
       {activeUploadId && (
-        <div className="pl-filters">
-          {filterSelect('company', 'Company', filterOptions.companies)}
-          {filterSelect('country', 'Country', filterOptions.countries)}
-          {filterSelect('grade', 'Grade', filterOptions.grades)}
-          {filterSelect('job_function', 'Job Function', filterOptions.job_functions)}
-          {filterSelect('industry', 'Industry', filterOptions.industries)}
-          {filterSelect('currency', 'Currency', filterOptions.currencies)}
-          <Input.Search placeholder="Search..." allowClear style={{ width: 180 }}
-            onSearch={(val) => setSearch(val)}
-            onChange={(e) => { if (!e.target.value) setSearch(''); }}
-          />
-          <button className="pl-clear-btn" onClick={() => { setFilters({}); setSearch(''); }}>Clear All</button>
-          <Popover open={colPanelOpen} onOpenChange={setColPanelOpen} trigger="click" placement="bottomRight"
-            content={<ColumnControl visibleKeys={visibleKeys} onChange={setVisibleKeys} onSave={handleSaveColumns} saving={savingCols} />}>
-            <button className="pl-col-btn pl-filters-right">
-              ⚙ Columns <span className="pl-col-badge">{visibleKeys.size}/{ALL_COLUMNS.length}</span>
-            </button>
-          </Popover>
+        <div className="pl-filters-bar">
+          <div className="pl-filters-inner">
+            {filterSelect('company', 'Company', filterOptions.companies)}
+            {filterSelect('country', 'Country', filterOptions.countries)}
+            {filterSelect('grade', 'Grade', filterOptions.grades)}
+            {filterSelect('job_function', 'Job Function', filterOptions.job_functions)}
+            {filterSelect('industry', 'Industry', filterOptions.industries)}
+            {filterSelect('currency', 'Currency', filterOptions.currencies)}
+            <Input.Search placeholder="Search..." allowClear style={{ width: 160 }}
+              onSearch={(val) => setSearch(val)}
+              onChange={(e) => { if (!e.target.value) setSearch(''); }}
+            />
+            <button className="pl-clear-btn" onClick={() => { setFilters({}); setSearch(''); }}>Clear</button>
+          </div>
+          <div className="pl-filters-right-group">
+            {!loading && (
+              <span className="pl-count-inline">
+                <strong>{rows.length.toLocaleString()}</strong> / {total.toLocaleString()} rows
+                {loadingMore && <span className="pl-loading-more"> · loading…</span>}
+              </span>
+            )}
+            <Popover open={colPanelOpen} onOpenChange={setColPanelOpen} trigger="click" placement="bottomRight"
+              content={<ColumnControl visibleKeys={visibleKeys} onChange={setVisibleKeys} onSave={handleSaveColumns} saving={savingCols} />}>
+              <button className="pl-col-btn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                  <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                </svg>
+                Columns <span className="pl-col-badge">{visibleKeys.size}/{ALL_COLUMNS.length}</span>
+              </button>
+            </Popover>
+          </div>
         </div>
       )}
 
-      {/* ── Row count ───────────────────────────────────────────────────── */}
-      {activeUploadId && !loading && (
-        <div className="pl-count">
-          Showing <strong>{rows.length.toLocaleString()}</strong> of <strong>{total.toLocaleString()}</strong> rows
-          {loadingMore && <span className="pl-loading-more"> · Loading more…</span>}
-        </div>
-      )}
-
-      {/* ── Table ───────────────────────────────────────────────────────── */}
+      {/* ── Table placeholder ───────────────────────────────────────────── */}
       <div className="pl-table-placeholder" ref={placeholderRef} />
 
       {tableRect && (

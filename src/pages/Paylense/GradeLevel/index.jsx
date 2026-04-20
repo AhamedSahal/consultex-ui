@@ -124,57 +124,71 @@ export default function GradeLevelPage() {
   return (
     <div className="gl-page">
 
-      {/* ── Toolbar ───────────────────────────────────────────────────────── */}
-      <div className="pl-toolbar">
-        <span className="pl-label">Dataset:</span>
-        <Select
-          style={{ minWidth: 300 }}
-          placeholder="Select an uploaded dataset"
-          value={activeUploadId || undefined}
-          onChange={setActiveUploadId}
-          options={uploads.map(u => ({
-            value: u.id,
-            label: `${u.document_number} — ${u.name}`,
-          }))}
-        />
-        {activeUploadId && (
-          <Popconfirm
-            title="Delete this dataset?"
-            description="All rows will be permanently removed."
-            onConfirm={handleDelete}
-            okText="Delete"
-            okButtonProps={{ danger: true }}
-          >
-            <button className="pl-delete-btn" title="Delete dataset">🗑</button>
-          </Popconfirm>
-        )}
-        {uploads.length > 0 && (
-          <span className="pl-uploads-summary">
-            {uploads.length} upload{uploads.length > 1 ? 's' : ''}
-          </span>
-        )}
-        <button className="pl-upload-btn pl-toolbar-right" onClick={() => setUploadModalOpen(true)}>
-          ↑ Upload Excel
+      {/* ── Control bar ───────────────────────────────────────────────────── */}
+      <div className="pl-control-bar">
+        <div className="pl-dataset-row">
+          <span className="pl-label">Dataset</span>
+          <Select
+            style={{ minWidth: 280 }}
+            placeholder="Select an uploaded dataset"
+            value={activeUploadId || undefined}
+            onChange={setActiveUploadId}
+            options={uploads.map(u => ({
+              value: u.id,
+              label: `${u.document_number} — ${u.name}`,
+            }))}
+          />
+          {activeUploadId && (
+            <Popconfirm
+              title="Delete this dataset?"
+              description="All rows will be permanently removed."
+              onConfirm={handleDelete}
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+            >
+              <button className="pl-delete-btn" title="Delete dataset">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+              </button>
+            </Popconfirm>
+          )}
+          {uploads.length > 0 && (
+            <span className="pl-uploads-summary">
+              {uploads.length} upload{uploads.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        <button className="pl-upload-btn" onClick={() => setUploadModalOpen(true)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Upload Excel
         </button>
       </div>
 
-      {/* ── Filters ───────────────────────────────────────────────────────── */}
+      {/* ── Filters bar ───────────────────────────────────────────────────── */}
       {activeUploadId && (
-        <div className="pl-filters">
-          <Select
-            allowClear
-            showSearch
-            placeholder="Grade"
-            style={{ minWidth: 180 }}
-            value={gradeFilter}
-            onChange={(val) => setGradeFilter(val || undefined)}
-            filterOption={(input, opt) => opt.label?.toLowerCase().includes(input.toLowerCase())}
-            options={(filterOptions.grades || []).map(v => ({ value: v, label: v }))}
-            className="pl-filter-select"
-          />
-          <button className="pl-clear-btn" onClick={() => setGradeFilter(undefined)}>
-            Clear All
-          </button>
+        <div className="pl-filters-bar">
+          <div className="pl-filters-inner">
+            <Select
+              allowClear
+              showSearch
+              placeholder="Grade"
+              style={{ minWidth: 160 }}
+              value={gradeFilter}
+              onChange={(val) => setGradeFilter(val || undefined)}
+              filterOption={(input, opt) => opt.label?.toLowerCase().includes(input.toLowerCase())}
+              options={(filterOptions.grades || []).map(v => ({ value: v, label: v }))}
+              className="pl-filter-select"
+            />
+            <button className="pl-clear-btn" onClick={() => setGradeFilter(undefined)}>Clear</button>
+          </div>
+          {!loading && (
+            <span className="pl-count-inline">
+              <strong>{rows.length.toLocaleString()}</strong> row{rows.length !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
       )}
 
@@ -190,13 +204,6 @@ export default function GradeLevelPage() {
           </button>
         ))}
       </div>
-
-      {/* ── Row count ─────────────────────────────────────────────────────── */}
-      {activeUploadId && !loading && (
-        <div className="pl-count">
-          Showing <strong>{rows.length.toLocaleString()}</strong> row{rows.length !== 1 ? 's' : ''}
-        </div>
-      )}
 
       {/* ── Table ─────────────────────────────────────────────────────────── */}
       <div className="gl-table-wrap">

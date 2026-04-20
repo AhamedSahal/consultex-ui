@@ -91,6 +91,17 @@ export async function analyzePositioning({ uploadId, filters = {}, internalSalar
   return res.data; // { analysis: "..." }
 }
 
+export async function fetchBenchmarkSlice({ uploadId, slices = {} }) {
+  const params = { upload_id: uploadId };
+  if (slices.country)              params.country              = slices.country;
+  if (slices.grade)                params.grade                = slices.grade;
+  if (slices.job_function)         params.job_function         = slices.job_function;
+  if (slices.compensation_element) params.compensation_element = slices.compensation_element;
+  if (slices.currency)             params.currency             = slices.currency;
+  const res = await api.get('/paylense/benchmark-slice', { params });
+  return res.data; // array of { compensation_element, country?, grade?, job_function?, currency?, p10, p25, p50, p75, p90, incumbents }
+}
+
 // ── Grade Level ────────────────────────────────────────────────────────────────
 
 export async function fetchGradeUploads() {

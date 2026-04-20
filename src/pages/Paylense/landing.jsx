@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Select, Input, Button, Upload, Form, Spin } from 'antd';
 import { toast } from 'react-toastify';
 
+import PaylenseOverview from './Overview/index';
+import IntelligenceCore from './IntelligenceCore/index';
 import JobLevelTable from './JobLevel';
 import GradeLevelPage from './GradeLevel/index';
 import StatsCards from './Dashboard/StatsCards';
@@ -11,6 +13,7 @@ import CountryDistributionChart from './Dashboard/CountryDistributionChart';
 import TopJobsChart from './Dashboard/TopJobsChart';
 import InsightPanel from './Dashboard/InsightPanel';
 import CompensationPositioning from './Dashboard/CompensationPositioning';
+import BenchmarkSummary from './Dashboard/BenchmarkSummary';
 
 import {
   uploadFile,
@@ -24,12 +27,29 @@ import {
   fetchCountryDistribution,
   fetchTopJobs,
   analyzePositioning,
+  fetchBenchmarkSlice,
 } from './service';
 
 const { Dragger } = Upload;
 
+// ── Coming Soon placeholder ────────────────────────────────────────────────────
+function ComingSoon({ title, subtitle }) {
+  return (
+    <div className="pl-coming-soon">
+      <span className="pl-coming-soon-icon">🚀</span>
+      <p className="pl-coming-soon-title">{title}</p>
+      <p className="pl-coming-soon-sub" style={{ color: 'var(--text-muted)' }}>
+        {subtitle || 'This feature is coming soon. Stay tuned!'}
+      </p>
+    </div>
+  );
+}
+
 export default function PaylenseLanding() {
-  // ── tab state ──────────────────────────────────────────────────────────────
+  // ── top-level tab ──────────────────────────────────────────────────────────
+  const [mainTab, setMainTab] = useState('overview'); // 'overview' | 'intelligence-core' | 'market-benchmarking'
+
+  // ── market benchmarking sub-tab ────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('job-level'); // 'job-level' | 'grade-level' | 'dashboard'
 
   // ── upload modal ───────────────────────────────────────────────────────────
@@ -151,72 +171,155 @@ export default function PaylenseLanding() {
     } finally { setPositioningLoading(false); }
   };
 
-  return (
-    <div className={`pl-page${activeTab === 'dashboard' ? ' pl-page--scroll' : ''}`}>
+  const isScrollPage = mainTab === 'market-benchmarking' && activeTab === 'dashboard';
 
-      {/* ── Header / Tab Nav ──────────────────────────────────────────────── */}
+  return (
+    <div className={`pl-page${isScrollPage ? ' pl-page--scroll' : ''}`}>
+
+      {/* ── Top-level Tab Nav ─────────────────────────────────────────────── */}
       <div className="pl-header">
         <nav className="pl-tab-nav">
           <button
-            className={`pl-tab${activeTab === 'job-level' ? ' pl-tab-active' : ''}`}
-            onClick={() => setActiveTab('job-level')}
+            className={`pl-tab${mainTab === 'overview' ? ' pl-tab-active' : ''}`}
+            onClick={() => setMainTab('overview')}
           >
-            Job Level
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+            </svg>
+            Overview
           </button>
           <button
-            className={`pl-tab${activeTab === 'grade-level' ? ' pl-tab-active' : ''}`}
-          onClick={() => setActiveTab('grade-level')}
-            title="Coming soon"
+            className={`pl-tab${mainTab === 'intelligence-core' ? ' pl-tab-active' : ''}`}
+            onClick={() => setMainTab('intelligence-core')}
           >
-            Grade Level
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2a5 5 0 0 1 5 5c0 2.4-1.7 4.4-4 4.9V13h2v2h-2v2h2v2h-2v1a1 1 0 0 1-2 0v-1H9v-2h2v-2H9v-2h2v-1.1C8.7 11.4 7 9.4 7 7a5 5 0 0 1 5-5z"/>
+            </svg>
+            Intelligence Core
           </button>
           <button
-            className={`pl-tab${activeTab === 'dashboard' ? ' pl-tab-active' : ''}`}
-            onClick={() => setActiveTab('dashboard')}
+            className={`pl-tab${mainTab === 'market-benchmarking' ? ' pl-tab-active' : ''}`}
+            onClick={() => setMainTab('market-benchmarking')}
           >
-            Dashboard
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            Market Benchmarking
           </button>
         </nav>
       </div>
 
-      {/* ══ JOB LEVEL ════════════════════════════════════════════════════════ */}
-      {activeTab === 'job-level' && (
-        <JobLevelTable
-          uploads={uploads}
-          activeUploadId={activeUploadId}
-          setActiveUploadId={setActiveUploadId}
-          onDelete={handleDelete}
-          onOpenUpload={() => setUploadModalOpen(true)}
+      {/* ══ OVERVIEW ═════════════════════════════════════════════════════════ */}
+      {mainTab === 'overview' && (
+        <PaylenseOverview
+          onOpenIntelligence={() => setMainTab('intelligence-core')}
+          onOpenBenchmarking={() => setMainTab('market-benchmarking')}
         />
       )}
 
-      {/* ══ GRADE LEVEL ══════════════════════════════════════════════════════ */}
-      {activeTab === 'grade-level' && <GradeLevelPage />}
+      {/* ══ INTELLIGENCE CORE ════════════════════════════════════════════════ */}
+      {mainTab === 'intelligence-core' && <IntelligenceCore />}
 
-      {/* ══ DASHBOARD ════════════════════════════════════════════════════════ */}
-      {activeTab === 'dashboard' && (
-        <div className="pl-dashboard">
-          <StatsCards data={stats} loading={statsLoading} />
-          <div className="pl-chart-grid">
-            <PercentileBandChart data={bands} loading={bandsLoading} />
-            <GradeProgressionChart data={grades} loading={gradesLoading} />
-            <CountryDistributionChart data={countries} loading={countriesLoading} />
-            <TopJobsChart data={topJobs} loading={topJobsLoading} />
+      {/* ══ MARKET BENCHMARKING ══════════════════════════════════════════════ */}
+      {mainTab === 'market-benchmarking' && (
+        <>
+          {/* Sub-tab nav */}
+          <div className="pl-sub-tab-nav">
+            <button
+              className={`pl-sub-tab${activeTab === 'benchmark-report' ? ' pl-sub-tab-active' : ''}`}
+              onClick={() => setActiveTab('benchmark-report')}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>
+              </svg>
+              Benchmark Report Gen
+            </button>
+            <button
+              className={`pl-sub-tab${activeTab === 'job-level' ? ' pl-sub-tab-active' : ''}`}
+              onClick={() => setActiveTab('job-level')}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+              </svg>
+              Job Level
+            </button>
+            <button
+              className={`pl-sub-tab${activeTab === 'grade-level' ? ' pl-sub-tab-active' : ''}`}
+              onClick={() => setActiveTab('grade-level')}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              Grade Level
+            </button>
+            <button
+              className={`pl-sub-tab${activeTab === 'dashboard' ? ' pl-sub-tab-active' : ''}`}
+              onClick={() => setActiveTab('dashboard')}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+              Analysis
+            </button>
           </div>
-          <InsightPanel
-            summary={insightSummary}
-            loading={insightLoading}
-            hasData={!!activeUploadId}
-            onGenerate={handleGenerateInsight}
-          />
-          <CompensationPositioning
-            onAnalyze={handleAnalyzePositioning}
-            loading={positioningLoading}
-            result={positioningResult}
-            filterOptions={filterOptions}
-            filters={filters}
-          />
-        </div>
+
+          {/* ── BENCHMARK REPORT GEN ───────────────────────────────────────── */}
+          {activeTab === 'benchmark-report' && (
+            <div className="pl-coming-soon">
+              <span className="pl-coming-soon-icon">📊</span>
+              <p className="pl-coming-soon-title">Benchmark Report Gen</p>
+              <p className="pl-coming-soon-sub" style={{ color: 'var(--text-muted)' }}>
+                Automated benchmark report generation is coming soon.
+              </p>
+            </div>
+          )}
+
+          {/* ── JOB LEVEL ──────────────────────────────────────────────────── */}
+          {activeTab === 'job-level' && (
+            <JobLevelTable
+              uploads={uploads}
+              activeUploadId={activeUploadId}
+              setActiveUploadId={setActiveUploadId}
+              onDelete={handleDelete}
+              onOpenUpload={() => setUploadModalOpen(true)}
+            />
+          )}
+
+          {/* ── GRADE LEVEL ────────────────────────────────────────────────── */}
+          {activeTab === 'grade-level' && <GradeLevelPage />}
+
+          {/* ── DASHBOARD ──────────────────────────────────────────────────── */}
+          {activeTab === 'dashboard' && (
+            <div className="pl-dashboard">
+              <StatsCards data={stats} loading={statsLoading} />
+              <div className="pl-chart-grid">
+                <PercentileBandChart data={bands} loading={bandsLoading} />
+                <GradeProgressionChart data={grades} loading={gradesLoading} />
+                <CountryDistributionChart data={countries} loading={countriesLoading} />
+                <TopJobsChart data={topJobs} loading={topJobsLoading} />
+              </div>
+              <BenchmarkSummary
+                uploadId={activeUploadId}
+                filterOptions={filterOptions}
+                onFetch={fetchBenchmarkSlice}
+              />
+              <InsightPanel
+                summary={insightSummary}
+                loading={insightLoading}
+                hasData={!!activeUploadId}
+                onGenerate={handleGenerateInsight}
+              />
+              <CompensationPositioning
+                onAnalyze={handleAnalyzePositioning}
+                loading={positioningLoading}
+                result={positioningResult}
+                filterOptions={filterOptions}
+                filters={filters}
+                bands={bands}
+              />
+            </div>
+          )}
+        </>
       )}
 
       {/* ── Upload Modal ──────────────────────────────────────────────────── */}
