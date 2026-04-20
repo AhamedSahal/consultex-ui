@@ -1,0 +1,198 @@
+/* ── Paylense Intelligence Core Page ────────────────────────────────────────── */
+
+.plic-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px 32px 48px;
+  overflow-y: auto;
+}
+
+/* ── Page header ─────────────────────────────────────────────────────────────── */
+.plic-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.plic-page-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 6px;
+  line-height: 1.1;
+}
+
+.plic-page-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────── */
+.plic-btn-primary {
+  padding: 9px 22px;
+  background: var(--orange);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.plic-btn-primary:hover { background: var(--orange-hover); }
+
+.plic-btn-ghost {
+  padding: 8px 20px;
+  background: none;
+  color: var(--text);
+  border: 1.5px solid var(--panel-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+.plic-btn-ghost:hover { border-color: var(--orange); color: var(--orange); }
+
+/* ── Workflow steps (3 cards side by side) ───────────────────────────────────── */
+.plic-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.plic-step-card {
+  background: #fff;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 24px 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plic-step-icon {
+  color: var(--orange);
+  display: flex;
+}
+
+.plic-step-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.plic-step-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+/* ── Market Signal Management card ──────────────────────────────────────────── */
+.plic-signal-card {
+  background: #fff;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.plic-signal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.plic-signal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+
+.plic-signal-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 560px;
+}
+
+.plic-signal-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ── Stats row ───────────────────────────────────────────────────────────────── */
+.plic-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--panel-border);
+  border-bottom: 1px solid var(--panel-border);
+  padding: 20px 0;
+}
+
+.plic-stat-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 24px;
+  border-right: 1px solid var(--panel-border);
+}
+.plic-stat-cell:first-child { padding-left: 0; }
+.plic-stat-cell:last-child { border-right: none; }
+
+.plic-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.plic-stat-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+
+/* ── Engine features grid (4 cards) ─────────────────────────────────────────── */
+.plic-engine-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.plic-engine-cell {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plic-engine-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.plic-engine-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
