@@ -34,6 +34,7 @@ function CompanySelectForm({
   companies,
   selectedCompany,
   onSelectCompany,
+  zIndex,
 }) {
   return (
     <Modal
@@ -43,6 +44,7 @@ function CompanySelectForm({
       onOk={onSelect}
       okText="Select"
       confirmLoading={confirmLoading}
+      zIndex={zIndex}
     >
       <div className="form-group">
         <Input

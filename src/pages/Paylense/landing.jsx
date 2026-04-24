@@ -6,6 +6,7 @@ import PaylenseOverview from './Overview/index';
 import IntelligenceCore from './IntelligenceCore/index';
 import JobLevelTable from './JobLevel';
 import GradeLevelPage from './GradeLevel/index';
+import BenchmarkReportGen from './MarketBenchmarking/index';
 import StatsCards from './Dashboard/StatsCards';
 import PercentileBandChart from './Dashboard/PercentileBandChart';
 import GradeProgressionChart from './Dashboard/GradeProgressionChart';
@@ -50,7 +51,12 @@ export default function PaylenseLanding() {
   const [mainTab, setMainTab] = useState('overview'); // 'overview' | 'intelligence-core' | 'market-benchmarking'
 
   // ── market benchmarking sub-tab ────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState('job-level'); // 'job-level' | 'grade-level' | 'dashboard'
+  const [activeTab, setActiveTab] = useState('benchmark-report'); // 'job-level' | 'grade-level' | 'dashboard'
+
+  const switchMainTab = (tab) => {
+    if (tab === 'market-benchmarking') setActiveTab('benchmark-report');
+    setMainTab(tab);
+  };
 
   // ── upload modal ───────────────────────────────────────────────────────────
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -181,7 +187,7 @@ export default function PaylenseLanding() {
         <nav className="pl-tab-nav">
           <button
             className={`pl-tab${mainTab === 'overview' ? ' pl-tab-active' : ''}`}
-            onClick={() => setMainTab('overview')}
+            onClick={() => switchMainTab('overview')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
@@ -190,7 +196,7 @@ export default function PaylenseLanding() {
           </button>
           <button
             className={`pl-tab${mainTab === 'intelligence-core' ? ' pl-tab-active' : ''}`}
-            onClick={() => setMainTab('intelligence-core')}
+            onClick={() => switchMainTab('intelligence-core')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2a5 5 0 0 1 5 5c0 2.4-1.7 4.4-4 4.9V13h2v2h-2v2h2v2h-2v1a1 1 0 0 1-2 0v-1H9v-2h2v-2H9v-2h2v-1.1C8.7 11.4 7 9.4 7 7a5 5 0 0 1 5-5z"/>
@@ -199,7 +205,7 @@ export default function PaylenseLanding() {
           </button>
           <button
             className={`pl-tab${mainTab === 'market-benchmarking' ? ' pl-tab-active' : ''}`}
-            onClick={() => setMainTab('market-benchmarking')}
+            onClick={() => switchMainTab('market-benchmarking')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
@@ -212,8 +218,8 @@ export default function PaylenseLanding() {
       {/* ══ OVERVIEW ═════════════════════════════════════════════════════════ */}
       {mainTab === 'overview' && (
         <PaylenseOverview
-          onOpenIntelligence={() => setMainTab('intelligence-core')}
-          onOpenBenchmarking={() => setMainTab('market-benchmarking')}
+          onOpenIntelligence={() => switchMainTab('intelligence-core')}
+          onOpenBenchmarking={() => switchMainTab('market-benchmarking')}
         />
       )}
 
@@ -265,13 +271,11 @@ export default function PaylenseLanding() {
 
           {/* ── BENCHMARK REPORT GEN ───────────────────────────────────────── */}
           {activeTab === 'benchmark-report' && (
-            <div className="pl-coming-soon">
-              <span className="pl-coming-soon-icon">📊</span>
-              <p className="pl-coming-soon-title">Benchmark Report Gen</p>
-              <p className="pl-coming-soon-sub" style={{ color: 'var(--text-muted)' }}>
-                Automated benchmark report generation is coming soon.
-              </p>
-            </div>
+            <BenchmarkReportGen
+              uploads={uploads}
+              activeUploadId={activeUploadId}
+              filterOptions={filterOptions}
+            />
           )}
 
           {/* ── JOB LEVEL ──────────────────────────────────────────────────── */}

@@ -4,6 +4,7 @@ import { message, Upload } from 'antd';
 import {
   BankOutlined,
   BookOutlined,
+  CloseOutlined,
   FileTextOutlined,
   CloudOutlined,
   UploadOutlined,
@@ -48,6 +49,7 @@ import RunHistory          from './RunHistory';
 import {
   fetchCompanies,
   fetchPlaybooks,
+  listRuns,
   startRun,
   uploadPlaybook,
   deletePlaybook,
@@ -123,6 +125,23 @@ function SelectionCard({ step, icon, title, value, subtitle, onClear, onClick, a
   );
 }
 
+function formatRunDate(value) {
+  if (!value) return '';
+  return new Date(value).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function runStatusClass(status = 'PENDING') {
+  const normalized = String(status).toLowerCase();
+  if (normalized === 'done') return 'done';
+  if (normalized === 'running') return 'running';
+  if (normalized === 'failed') return 'failed';
+  return 'pending';
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 function HRManualAgentPage() {
   // ── Selection state ──────────────────────────────────────────────────────────
@@ -141,10 +160,12 @@ function HRManualAgentPage() {
   const [showCompany,   setShowCompany]   = useState(false);
   const [showOneDrive,  setShowOneDrive]  = useState(false);
   const [showProgress,  setShowProgress]  = useState(false);
+  const [showGenerateForm, setShowGenerateForm] = useState(false);
 
   // ── Data ─────────────────────────────────────────────────────────────────────
   const [companies,        setCompanies]        = useState([]);
   const [playbooks,        setPlaybooks]        = useState([]);
+  const [recentRuns,       setRecentRuns]       = useState([]);
   const [companySearch,    setCompanySearch]    = useState('');
   const [loadingCompanies,   setLoadingCompanies]   = useState(false);
   const [loadingPlaybooks,   setLoadingPlaybooks]   = useState(false);
@@ -199,6 +220,19 @@ function HRManualAgentPage() {
       .then(setCompanies)
       .catch(() => {})
       .finally(() => setLoadingCompanies(false));
+  }, []);
+
+  async function loadRecentRuns() {
+    try {
+      const data = await listRuns();
+      setRecentRuns(Array.isArray(data) ? data : []);
+    } catch {
+      setRecentRuns([]);
+    }
+  }
+
+  useEffect(() => {
+    loadRecentRuns();
   }, []);
 
   useEffect(() => {
@@ -305,8 +339,10 @@ function HRManualAgentPage() {
 
       const data = await startRun(fd);
       setRunId(data.runId);
+      setShowGenerateForm(false);
       setShowProgress(true);
       clearManual();
+      loadRecentRuns();
     } catch (err) {
       message.error(err?.response?.data?.error || err.message || 'Failed to start run');
     } finally {
@@ -346,7 +382,94 @@ function HRManualAgentPage() {
 
       {/* ── Agent tab ── */}
       {activeTab === 'agent' && (
-        <div className="hrm-content">
+        <>
+          <div className="hrm-landing">
+            <div className="hrm-landing-content">
+              <div className="hrm-landing-icon-wrap">
+                <div className="hrm-landing-icon-bg" />
+                <div className="hrm-landing-icon">
+                  <RobotOutlined />
+                </div>
+              </div>
+
+              <div className="hrm-landing-text">
+                <h2 className="hrm-landing-title">HR Manual Update Agent</h2>
+                <p className="hrm-landing-sub">
+                  Generate an AI-powered HR manual update with company context, playbook guidance,
+                  change logs, red flags, and export-ready documents.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="hrm-cta-btn"
+                onClick={() => setShowGenerateForm(true)}
+              >
+                <ThunderboltOutlined />
+                Configure &amp; Generate Manual
+              </button>
+
+              <div className="hrm-landing-pills">
+                {[
+                  { dot: '#f97316', label: 'AI-Powered Review' },
+                  { dot: '#3b82f6', label: 'Playbook Guidance' },
+                  { dot: '#10b981', label: 'Change Log Export' },
+                  { dot: '#8b5cf6', label: 'Risk Flag Detection' },
+                ].map((p) => (
+                  <div key={p.label} className="hrm-landing-pill">
+                    <span className="hrm-landing-pill-dot" style={{ background: p.dot }} />
+                    {p.label}
+                  </div>
+                ))}
+              </div>
+
+              {recentRuns.length > 0 && (
+                <div className="hrm-saved-list">
+                  <p className="hrm-saved-list-title">RECENT SAVED RUNS</p>
+                  {recentRuns.slice(0, 4).map((run) => (
+                    <div key={run.id} className="hrm-saved-item">
+                      <div>
+                        <span className="hrm-saved-item-name">
+                          {run.manual_file_name || `HR Manual Run #${run.id}`}
+                        </span>
+                        <span className="hrm-saved-item-date">{formatRunDate(run.created_at)}</span>
+                      </div>
+                      <span className={`hrm-run-status hrm-run-status--${runStatusClass(run.status)}`}>
+                        {run.status || 'PENDING'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {showGenerateForm && (
+            <div
+              className="hrm-form-overlay"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setShowGenerateForm(false);
+              }}
+            >
+              <div className="hrm-form-modal">
+                <div className="hrm-form-modal__header">
+                  <div>
+                    <p className="hrm-form-modal__title">Configure HR Manual Update</p>
+                    <p className="hrm-form-modal__subtitle">
+                      Select your company, source manual, and optional AI instructions.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="hrm-form-modal__close"
+                    onClick={() => setShowGenerateForm(false)}
+                    aria-label="Close"
+                  >
+                    <CloseOutlined />
+                  </button>
+                </div>
+                <div className="hrm-form-modal__body">
+                  <div className="hrm-content hrm-content--modal">
 
           {/* Hero header */}
           <div className="hrm-hero">
@@ -564,7 +687,12 @@ function HRManualAgentPage() {
             )}
           </div>
 
-        </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* ── Modals ── */}
