@@ -35,7 +35,7 @@ function isUnsupported(item) {
   return fileExt(item.name) === 'doc';
 }
 
-function OneDrivePickerModal({ open, onCancel, onSelect }) {
+function OneDrivePickerModal({ open, onCancel, onSelect, zIndex }) {
   const [items, setItems]           = useState([]);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
@@ -99,6 +99,7 @@ function OneDrivePickerModal({ open, onCancel, onSelect }) {
       okText="Select"
       okButtonProps={{ disabled: !selected }}
       width={560}
+      zIndex={zIndex}
     >
       {/* Breadcrumb navigation */}
       <Breadcrumb

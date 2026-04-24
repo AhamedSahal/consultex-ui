@@ -23,6 +23,7 @@ import CompaniesPage from './pages/Companies';
 import CompanyWorkspacePage from './pages/Companies/Workspace';
 import AdminUsers from './pages/AdminUsers';
 import PaylensePage from './pages/Paylense/landing';
+import JobEvaluationPage from './pages/JobEvaluation/index';
 
 function App() {
   const { user, loading, logout } = useAuth();
@@ -61,6 +62,7 @@ function App() {
                     <Route path="/agents/hr-manual-agent" element={<HRManualAgentPage />} />
                     <Route path="/companies" element={<CompaniesPage />} />
                     <Route path="/paylense" element={<PaylensePage />} />
+                    <Route path="/job-evaluation" element={<JobEvaluationPage />} />
                     <Route path="/companies/:companyId/workspace" element={<CompanyWorkspacePage />} />
                     <Route path="/connect" element={<Connect />} />
                     <Route path="/reports" element={<Reports />} />

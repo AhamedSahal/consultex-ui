@@ -102,6 +102,44 @@ export async function fetchBenchmarkSlice({ uploadId, slices = {} }) {
   return res.data; // array of { compensation_element, country?, grade?, job_function?, currency?, p10, p25, p50, p75, p90, incumbents }
 }
 
+// ── Benchmark Report Gen ───────────────────────────────────────────────────────
+
+export async function generateBenchmarkReport(payload) {
+  const res = await api.post('/paylense/benchmark-report/generate', payload);
+  return res.data;
+}
+
+export async function saveBenchmarkReport({ uploadId, name, filters, reportData, aiSummary }) {
+  const res = await api.post('/paylense/benchmark-report/save', {
+    upload_id:   uploadId,
+    name,
+    filters,
+    report_data: reportData,
+    ai_summary:  aiSummary,
+  });
+  return res.data;
+}
+
+export async function fetchBenchmarkReports() {
+  const res = await api.get('/paylense/benchmark-reports');
+  return res.data;
+}
+
+export async function fetchBenchmarkReportById(id) {
+  const res = await api.get(`/paylense/benchmark-reports/${id}`);
+  return res.data;
+}
+
+export async function deleteBenchmarkReport(id) {
+  const res = await api.delete(`/paylense/benchmark-reports/${id}`);
+  return res.data;
+}
+
+export async function generateGradeReport(payload) {
+  const res = await api.post('/paylense/grade-report/generate', payload);
+  return res.data;
+}
+
 // ── Grade Level ────────────────────────────────────────────────────────────────
 
 export async function fetchGradeUploads() {
